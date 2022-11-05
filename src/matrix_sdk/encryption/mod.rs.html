@@ -1,0 +1,1842 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/matrix-sdk/src/encryption/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../matrix_sdk/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<span id="2">2</span>
+<span id="3">3</span>
+<span id="4">4</span>
+<span id="5">5</span>
+<span id="6">6</span>
+<span id="7">7</span>
+<span id="8">8</span>
+<span id="9">9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
+<span id="89">89</span>
+<span id="90">90</span>
+<span id="91">91</span>
+<span id="92">92</span>
+<span id="93">93</span>
+<span id="94">94</span>
+<span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
+<span id="546">546</span>
+<span id="547">547</span>
+<span id="548">548</span>
+<span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
+<span id="553">553</span>
+<span id="554">554</span>
+<span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
+<span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
+<span id="669">669</span>
+<span id="670">670</span>
+<span id="671">671</span>
+<span id="672">672</span>
+<span id="673">673</span>
+<span id="674">674</span>
+<span id="675">675</span>
+<span id="676">676</span>
+<span id="677">677</span>
+<span id="678">678</span>
+<span id="679">679</span>
+<span id="680">680</span>
+<span id="681">681</span>
+<span id="682">682</span>
+<span id="683">683</span>
+<span id="684">684</span>
+<span id="685">685</span>
+<span id="686">686</span>
+<span id="687">687</span>
+<span id="688">688</span>
+<span id="689">689</span>
+<span id="690">690</span>
+<span id="691">691</span>
+<span id="692">692</span>
+<span id="693">693</span>
+<span id="694">694</span>
+<span id="695">695</span>
+<span id="696">696</span>
+<span id="697">697</span>
+<span id="698">698</span>
+<span id="699">699</span>
+<span id="700">700</span>
+<span id="701">701</span>
+<span id="702">702</span>
+<span id="703">703</span>
+<span id="704">704</span>
+<span id="705">705</span>
+<span id="706">706</span>
+<span id="707">707</span>
+<span id="708">708</span>
+<span id="709">709</span>
+<span id="710">710</span>
+<span id="711">711</span>
+<span id="712">712</span>
+<span id="713">713</span>
+<span id="714">714</span>
+<span id="715">715</span>
+<span id="716">716</span>
+<span id="717">717</span>
+<span id="718">718</span>
+<span id="719">719</span>
+<span id="720">720</span>
+<span id="721">721</span>
+<span id="722">722</span>
+<span id="723">723</span>
+<span id="724">724</span>
+<span id="725">725</span>
+<span id="726">726</span>
+<span id="727">727</span>
+<span id="728">728</span>
+<span id="729">729</span>
+<span id="730">730</span>
+<span id="731">731</span>
+<span id="732">732</span>
+<span id="733">733</span>
+<span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
+<span id="737">737</span>
+<span id="738">738</span>
+<span id="739">739</span>
+<span id="740">740</span>
+<span id="741">741</span>
+<span id="742">742</span>
+<span id="743">743</span>
+<span id="744">744</span>
+<span id="745">745</span>
+<span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
+<span id="817">817</span>
+<span id="818">818</span>
+<span id="819">819</span>
+<span id="820">820</span>
+<span id="821">821</span>
+<span id="822">822</span>
+<span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
+<span id="836">836</span>
+<span id="837">837</span>
+<span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
+<span id="847">847</span>
+<span id="848">848</span>
+<span id="849">849</span>
+<span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
+<span id="853">853</span>
+<span id="854">854</span>
+<span id="855">855</span>
+<span id="856">856</span>
+<span id="857">857</span>
+<span id="858">858</span>
+<span id="859">859</span>
+<span id="860">860</span>
+<span id="861">861</span>
+<span id="862">862</span>
+<span id="863">863</span>
+<span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
+<span id="867">867</span>
+<span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
+<span id="872">872</span>
+<span id="873">873</span>
+<span id="874">874</span>
+<span id="875">875</span>
+<span id="876">876</span>
+<span id="877">877</span>
+<span id="878">878</span>
+<span id="879">879</span>
+<span id="880">880</span>
+<span id="881">881</span>
+<span id="882">882</span>
+<span id="883">883</span>
+<span id="884">884</span>
+<span id="885">885</span>
+<span id="886">886</span>
+<span id="887">887</span>
+<span id="888">888</span>
+<span id="889">889</span>
+<span id="890">890</span>
+<span id="891">891</span>
+<span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
+<span id="895">895</span>
+<span id="896">896</span>
+<span id="897">897</span>
+<span id="898">898</span>
+<span id="899">899</span>
+<span id="900">900</span>
+<span id="901">901</span>
+<span id="902">902</span>
+<span id="903">903</span>
+<span id="904">904</span>
+<span id="905">905</span>
+<span id="906">906</span>
+<span id="907">907</span>
+<span id="908">908</span>
+<span id="909">909</span>
+<span id="910">910</span>
+<span id="911">911</span>
+<span id="912">912</span>
+<span id="913">913</span>
+<span id="914">914</span>
+<span id="915">915</span>
+<span id="916">916</span>
+<span id="917">917</span>
+<span id="918">918</span>
+<span id="919">919</span>
+<span id="920">920</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright 2021 The Matrix.org Foundation C.I.C.
+// Copyright 2021 Damir Jelić
+//
+// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+</span><span class="attr">#![doc = <span class="macro">include_str!</span>(<span class="string">&quot;../docs/encryption.md&quot;</span>)]
+#![cfg_attr(target_arch = <span class="string">&quot;wasm32&quot;</span>, allow(unused_imports))]
+
+</span><span class="kw">pub mod </span>identities;
+<span class="kw">pub mod </span>verification;
+<span class="kw">use </span>std::{
+    collections::{BTreeMap, HashSet},
+    io::{Read, Write},
+    iter,
+    path::PathBuf,
+};
+
+<span class="kw">use </span>futures_util::stream::{<span class="self">self</span>, StreamExt};
+<span class="kw">pub use </span>matrix_sdk_base::crypto::{
+    olm::{
+        SessionCreationError <span class="kw">as </span>MegolmSessionCreationError,
+        SessionExportError <span class="kw">as </span>OlmSessionExportError,
+    },
+    vodozemac, CryptoStoreError, DecryptorError, EventError, KeyExportError, LocalTrust,
+    MediaEncryptionInfo, MegolmError, OlmError, RoomKeyImportResult, SecretImportError,
+    SessionCreationError, SignatureError,
+};
+<span class="kw">use </span>matrix_sdk_base::crypto::{
+    CrossSigningStatus, OutgoingRequest, RoomMessageRequest, ToDeviceRequest,
+};
+<span class="kw">use </span>matrix_sdk_common::instant::Duration;
+<span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+</span><span class="kw">use </span>ruma::OwnedDeviceId;
+<span class="kw">use </span>ruma::{
+    api::client::{
+        backup::add_backup_keys::v3::Response <span class="kw">as </span>KeysBackupResponse,
+        keys::{
+            get_keys, upload_keys, upload_signing_keys::v3::Request <span class="kw">as </span>UploadSigningKeysRequest,
+        },
+        message::send_message_event,
+        to_device::send_event_to_device::v3::{
+            Request <span class="kw">as </span>RumaToDeviceRequest, Response <span class="kw">as </span>ToDeviceResponse,
+        },
+        uiaa::AuthData,
+    },
+    assign, DeviceId, OwnedUserId, TransactionId, UserId,
+};
+<span class="kw">use </span>tracing::{debug, instrument, trace, warn};
+
+<span class="kw">pub use </span><span class="kw">crate</span>::error::RoomKeyImportError;
+<span class="kw">use crate</span>::{
+    attachment::{AttachmentInfo, Thumbnail},
+    encryption::{
+        identities::{Device, UserDevices},
+        verification::{SasVerification, Verification, VerificationRequest},
+    },
+    error::HttpResult,
+    room, Client, Error, <span class="prelude-ty">Result</span>,
+};
+
+<span class="kw">impl </span>Client {
+    <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>olm_machine(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>matrix_sdk_base::crypto::OlmMachine&gt; {
+        <span class="self">self</span>.base_client().olm_machine()
+    }
+
+    <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>mark_request_as_sent(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request_id: <span class="kw-2">&amp;</span>TransactionId,
+        response: <span class="kw">impl </span>Into&lt;matrix_sdk_base::crypto::IncomingResponse&lt;<span class="lifetime">&#39;_</span>&gt;&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), matrix_sdk_base::Error&gt; {
+        <span class="prelude-val">Ok</span>(<span class="self">self
+            </span>.olm_machine()
+            .expect(
+                <span class="string">&quot;We should have an olm machine once we try to mark E2EE related requests as sent&quot;</span>,
+            )
+            .mark_request_as_sent(request_id, response)
+            .<span class="kw">await</span><span class="question-mark">?</span>)
+    }
+
+    <span class="doccomment">/// Query the server for users device keys.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no key query needs to be done.
+    </span><span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    #[instrument(skip(<span class="self">self</span>))]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>keys_query(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request_id: <span class="kw-2">&amp;</span>TransactionId,
+        device_keys: BTreeMap&lt;OwnedUserId, Vec&lt;OwnedDeviceId&gt;&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;get_keys::v3::Response&gt; {
+        <span class="kw">let </span>request = <span class="macro">assign!</span>(get_keys::v3::Request::new(), { device_keys });
+
+        <span class="kw">let </span>response = <span class="self">self</span>.send(request, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="self">self</span>.mark_request_as_sent(request_id, <span class="kw-2">&amp;</span>response).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(response)
+    }
+
+    <span class="doccomment">/// Encrypt and upload the file to be read from `reader` and construct an
+    /// attachment message with `body`, `content_type`, `info` and `thumbnail`.
+    </span><span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>prepare_encrypted_attachment_message(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        body: <span class="kw-2">&amp;</span>str,
+        content_type: <span class="kw-2">&amp;</span>mime::Mime,
+        data: <span class="kw-2">&amp;</span>[u8],
+        info: <span class="prelude-ty">Option</span>&lt;AttachmentInfo&gt;,
+        thumbnail: <span class="prelude-ty">Option</span>&lt;Thumbnail&lt;<span class="lifetime">&#39;_</span>&gt;&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;ruma::events::room::message::MessageType&gt; {
+        <span class="kw">let </span>(thumbnail_source, thumbnail_info) = <span class="kw">if let </span><span class="prelude-val">Some</span>(thumbnail) = thumbnail {
+            <span class="kw">let </span><span class="kw-2">mut </span>cursor = Cursor::new(thumbnail.data);
+            <span class="kw">let </span><span class="kw-2">mut </span>encryptor = matrix_sdk_base::crypto::AttachmentEncryptor::new(<span class="kw-2">&amp;mut </span>cursor);
+
+            <span class="kw">let </span><span class="kw-2">mut </span>buf = Vec::new();
+            encryptor.read_to_end(<span class="kw-2">&amp;mut </span>buf)<span class="question-mark">?</span>;
+
+            <span class="kw">let </span>response = <span class="self">self</span>.media().upload(thumbnail.content_type, <span class="kw-2">&amp;</span>buf).<span class="kw">await</span><span class="question-mark">?</span>;
+
+            <span class="kw">let </span>file: ruma::events::room::EncryptedFile = {
+                <span class="kw">let </span>keys = encryptor.finish();
+                ruma::events::room::EncryptedFileInit {
+                    url: response.content_uri,
+                    key: keys.key,
+                    iv: keys.iv,
+                    hashes: keys.hashes,
+                    v: keys.version,
+                }
+                .into()
+            };
+
+            <span class="kw">use </span>ruma::events::room::ThumbnailInfo;
+
+            <span class="attr">#[rustfmt::skip]
+            </span><span class="kw">let </span>thumbnail_info =
+                <span class="macro">assign!</span>(thumbnail.info.map(ThumbnailInfo::from).unwrap_or_default(), {
+                    mimetype: <span class="prelude-val">Some</span>(thumbnail.content_type.as_ref().to_owned())
+                });
+
+            (<span class="prelude-val">Some</span>(MediaSource::Encrypted(Box::new(file))), <span class="prelude-val">Some</span>(Box::new(thumbnail_info)))
+        } <span class="kw">else </span>{
+            (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>)
+        };
+
+        <span class="kw">let </span><span class="kw-2">mut </span>cursor = Cursor::new(data);
+        <span class="kw">let </span><span class="kw-2">mut </span>encryptor = matrix_sdk_base::crypto::AttachmentEncryptor::new(<span class="kw-2">&amp;mut </span>cursor);
+        <span class="kw">let </span><span class="kw-2">mut </span>buf = Vec::new();
+        encryptor.read_to_end(<span class="kw-2">&amp;mut </span>buf)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>response = <span class="self">self</span>.media().upload(content_type, <span class="kw-2">&amp;</span>buf).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="kw">let </span>file: ruma::events::room::EncryptedFile = {
+            <span class="kw">let </span>keys = encryptor.finish();
+            ruma::events::room::EncryptedFileInit {
+                url: response.content_uri,
+                key: keys.key,
+                iv: keys.iv,
+                hashes: keys.hashes,
+                v: keys.version,
+            }
+            .into()
+        };
+
+        <span class="kw">use </span>std::io::Cursor;
+
+        <span class="kw">use </span>ruma::events::room::{<span class="self">self</span>, message, MediaSource};
+        <span class="prelude-val">Ok</span>(<span class="kw">match </span>content_type.type_() {
+            mime::IMAGE =&gt; {
+                <span class="kw">let </span>info = <span class="macro">assign!</span>(info.map(room::ImageInfo::from).unwrap_or_default(), {
+                    mimetype: <span class="prelude-val">Some</span>(content_type.as_ref().to_owned()),
+                    thumbnail_source,
+                    thumbnail_info
+                });
+                <span class="kw">let </span>content =
+                    <span class="macro">assign!</span>(message::ImageMessageEventContent::encrypted(body.to_owned(), file), {
+                        info: <span class="prelude-val">Some</span>(Box::new(info))
+                    });
+                message::MessageType::Image(content)
+            }
+            mime::AUDIO =&gt; {
+                <span class="kw">let </span>info = <span class="macro">assign!</span>(info.map(message::AudioInfo::from).unwrap_or_default(), {
+                    mimetype: <span class="prelude-val">Some</span>(content_type.as_ref().to_owned()),
+                });
+                <span class="kw">let </span>content =
+                    <span class="macro">assign!</span>(message::AudioMessageEventContent::encrypted(body.to_owned(), file), {
+                        info: <span class="prelude-val">Some</span>(Box::new(info))
+                    });
+                message::MessageType::Audio(content)
+            }
+            mime::VIDEO =&gt; {
+                <span class="kw">let </span>info = <span class="macro">assign!</span>(info.map(message::VideoInfo::from).unwrap_or_default(), {
+                    mimetype: <span class="prelude-val">Some</span>(content_type.as_ref().to_owned()),
+                    thumbnail_source,
+                    thumbnail_info
+                });
+                <span class="kw">let </span>content =
+                    <span class="macro">assign!</span>(message::VideoMessageEventContent::encrypted(body.to_owned(), file), {
+                        info: <span class="prelude-val">Some</span>(Box::new(info))
+                    });
+                message::MessageType::Video(content)
+            }
+            <span class="kw">_ </span>=&gt; {
+                <span class="kw">let </span>info = <span class="macro">assign!</span>(info.map(message::FileInfo::from).unwrap_or_default(), {
+                    mimetype: <span class="prelude-val">Some</span>(content_type.as_ref().to_owned()),
+                    thumbnail_source,
+                    thumbnail_info
+                });
+                <span class="kw">let </span>content =
+                    <span class="macro">assign!</span>(message::FileMessageEventContent::encrypted(body.to_owned(), file), {
+                        info: <span class="prelude-val">Some</span>(Box::new(info))
+                    });
+                message::MessageType::File(content)
+            }
+        })
+    }
+
+    <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>create_dm_room(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        user_id: OwnedUserId,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;room::Joined&gt;&gt; {
+        <span class="kw">use </span>ruma::{
+            api::client::room::create_room::v3::RoomPreset, events::direct::DirectEventContent,
+        };
+
+        <span class="kw">const </span>SYNC_WAIT_TIME: Duration = Duration::from_secs(<span class="number">3</span>);
+
+        <span class="comment">// First we create the DM room, where we invite the user and tell the
+        // invitee that the room should be a DM.
+        </span><span class="kw">let </span>invite = <span class="kw-2">&amp;</span>[user_id.clone()];
+
+        <span class="kw">let </span>request = <span class="macro">assign!</span>(ruma::api::client::room::create_room::v3::Request::new(), {
+            invite,
+            is_direct: <span class="bool-val">true</span>,
+            preset: <span class="prelude-val">Some</span>(RoomPreset::TrustedPrivateChat),
+        });
+
+        <span class="kw">let </span>response = <span class="self">self</span>.send(request, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="comment">// Now we need to mark the room as a DM for ourselves, we fetch the
+        // existing `m.direct` event and append the room to the list of DMs we
+        // have with this user.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>content = <span class="self">self
+            </span>.account()
+            .account_data::&lt;DirectEventContent&gt;()
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.map(|c| c.deserialize())
+            .transpose()<span class="question-mark">?
+            </span>.unwrap_or_default();
+
+        content.entry(user_id.to_owned()).or_default().push(response.room_id.to_owned());
+
+        <span class="comment">// TODO We should probably save the fact that we need to send this out
+        // because otherwise we might end up in a state where we have a DM that
+        // isn&#39;t marked as one.
+        </span><span class="self">self</span>.account().set_account_data(content).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="comment">// If the room is already in our store, fetch it, otherwise wait for a
+        // sync to be done which should put the room into our store.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(room) = <span class="self">self</span>.get_joined_room(<span class="kw-2">&amp;</span>response.room_id) {
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(room))
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.inner.sync_beat.listen().wait_timeout(SYNC_WAIT_TIME);
+            <span class="prelude-val">Ok</span>(<span class="self">self</span>.get_joined_room(<span class="kw-2">&amp;</span>response.room_id))
+        }
+    }
+
+    <span class="doccomment">/// Claim one-time keys creating new Olm sessions.
+    ///
+    /// # Arguments
+    ///
+    /// * `users` - The list of user/device pairs that we should claim keys for.
+    </span><span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    #[instrument(skip_all)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>claim_one_time_keys(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        users: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>UserId&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>_lock = <span class="self">self</span>.inner.key_claim_lock.lock().<span class="kw">await</span>;
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>((request_id, request)) = <span class="self">self
+            </span>.olm_machine()
+            .ok_or(Error::AuthenticationRequired)<span class="question-mark">?
+            </span>.get_missing_sessions(users)
+            .<span class="kw">await</span><span class="question-mark">?
+        </span>{
+            <span class="kw">let </span>response = <span class="self">self</span>.send(request, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="self">self</span>.mark_request_as_sent(<span class="kw-2">&amp;</span>request_id, <span class="kw-2">&amp;</span>response).<span class="kw">await</span><span class="question-mark">?</span>;
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="doccomment">/// Upload the E2E encryption keys.
+    ///
+    /// This uploads the long lived device keys as well as the required amount
+    /// of one-time keys.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the client isn&#39;t logged in, or if no encryption keys need to
+    /// be uploaded.
+    </span><span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    #[instrument(skip(<span class="self">self</span>, request))]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>keys_upload(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request_id: <span class="kw-2">&amp;</span>TransactionId,
+        request: <span class="kw-2">&amp;</span>upload_keys::v3::Request,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;upload_keys::v3::Response&gt; {
+        <span class="macro">debug!</span>(
+            device_keys = request.device_keys.is_some(),
+            one_time_key_count = request.one_time_keys.len(),
+            <span class="string">&quot;Uploading public encryption keys&quot;</span>,
+        );
+
+        <span class="kw">let </span>response = <span class="self">self</span>.send(request.clone(), <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="self">self</span>.mark_request_as_sent(request_id, <span class="kw-2">&amp;</span>response).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(response)
+    }
+
+    <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>room_send_helper(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: <span class="kw-2">&amp;</span>RoomMessageRequest,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;send_message_event::v3::Response&gt; {
+        <span class="kw">let </span>content = request.content.clone();
+        <span class="kw">let </span>txn_id = <span class="kw-2">&amp;</span>request.txn_id;
+        <span class="kw">let </span>room_id = <span class="kw-2">&amp;</span>request.room_id;
+
+        <span class="self">self</span>.get_joined_room(room_id)
+            .expect(<span class="string">&quot;Can&#39;t send a message to a room that isn&#39;t known to the store&quot;</span>)
+            .send(content, <span class="prelude-val">Some</span>(txn_id))
+            .<span class="kw">await
+    </span>}
+
+    <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>send_to_device(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: <span class="kw-2">&amp;</span>ToDeviceRequest,
+    ) -&gt; HttpResult&lt;ToDeviceResponse&gt; {
+        <span class="kw">let </span>event_type = request.event_type.to_string();
+        <span class="kw">let </span>request =
+            RumaToDeviceRequest::new_raw(<span class="kw-2">&amp;</span>event_type, <span class="kw-2">&amp;</span>request.txn_id, request.messages.clone());
+
+        <span class="self">self</span>.send(request, <span class="prelude-val">None</span>).<span class="kw">await
+    </span>}
+
+    <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>send_verification_request(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: matrix_sdk_base::crypto::OutgoingVerificationRequest,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">match </span>request {
+            matrix_sdk_base::crypto::OutgoingVerificationRequest::ToDevice(t) =&gt; {
+                <span class="self">self</span>.send_to_device(<span class="kw-2">&amp;</span>t).<span class="kw">await</span><span class="question-mark">?</span>;
+            }
+            matrix_sdk_base::crypto::OutgoingVerificationRequest::InRoom(r) =&gt; {
+                <span class="self">self</span>.room_send_helper(<span class="kw-2">&amp;</span>r).<span class="kw">await</span><span class="question-mark">?</span>;
+            }
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span><span class="kw">fn </span>get_dm_room(<span class="kw-2">&amp;</span><span class="self">self</span>, user_id: <span class="kw-2">&amp;</span>UserId) -&gt; <span class="prelude-ty">Option</span>&lt;room::Joined&gt; {
+        <span class="kw">let </span>rooms = <span class="self">self</span>.joined_rooms();
+
+        <span class="comment">// Find the room we share with the `user_id` and only with `user_id`
+        </span><span class="kw">let </span>room = rooms.into_iter().find(|r| {
+            <span class="kw">let </span>targets = r.direct_targets();
+            targets.len() == <span class="number">1 </span>&amp;&amp; targets.contains(user_id)
+        });
+
+        <span class="macro">trace!</span>(<span class="question-mark">?</span>room, <span class="string">&quot;Found room&quot;</span>);
+        room
+    }
+
+    <span class="kw">async fn </span>send_outgoing_request(<span class="kw-2">&amp;</span><span class="self">self</span>, r: OutgoingRequest) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">use </span>matrix_sdk_base::crypto::OutgoingRequests;
+
+        <span class="kw">match </span>r.request() {
+            OutgoingRequests::KeysQuery(request) =&gt; {
+                <span class="self">self</span>.keys_query(r.request_id(), request.device_keys.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
+            }
+            OutgoingRequests::KeysUpload(request) =&gt; {
+                <span class="self">self</span>.keys_upload(r.request_id(), request).<span class="kw">await</span><span class="question-mark">?</span>;
+            }
+            OutgoingRequests::ToDeviceRequest(request) =&gt; {
+                <span class="kw">let </span>response = <span class="self">self</span>.send_to_device(request).<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="self">self</span>.mark_request_as_sent(r.request_id(), <span class="kw-2">&amp;</span>response).<span class="kw">await</span><span class="question-mark">?</span>;
+            }
+            OutgoingRequests::SignatureUpload(request) =&gt; {
+                <span class="kw">let </span>response = <span class="self">self</span>.send(request.clone(), <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="self">self</span>.mark_request_as_sent(r.request_id(), <span class="kw-2">&amp;</span>response).<span class="kw">await</span><span class="question-mark">?</span>;
+            }
+            OutgoingRequests::RoomMessage(request) =&gt; {
+                <span class="kw">let </span>response = <span class="self">self</span>.room_send_helper(request).<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="self">self</span>.mark_request_as_sent(r.request_id(), <span class="kw-2">&amp;</span>response).<span class="kw">await</span><span class="question-mark">?</span>;
+            }
+            OutgoingRequests::KeysClaim(request) =&gt; {
+                <span class="kw">let </span>response = <span class="self">self</span>.send(request.clone(), <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="self">self</span>.mark_request_as_sent(r.request_id(), <span class="kw-2">&amp;</span>response).<span class="kw">await</span><span class="question-mark">?</span>;
+            }
+            OutgoingRequests::KeysBackup(request) =&gt; {
+                <span class="kw">let </span>response = <span class="self">self</span>.send_backup_request(request).<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="self">self</span>.mark_request_as_sent(r.request_id(), <span class="kw-2">&amp;</span>response).<span class="kw">await</span><span class="question-mark">?</span>;
+            }
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">async fn </span>send_backup_request(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        request: <span class="kw-2">&amp;</span>matrix_sdk_base::crypto::KeysBackupRequest,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;KeysBackupResponse&gt; {
+        <span class="kw">let </span>request = ruma::api::client::backup::add_backup_keys::v3::Request::new(
+            <span class="kw-2">&amp;</span>request.version,
+            request.rooms.to_owned(),
+        );
+
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.send(request, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>send_outgoing_requests(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">const </span>MAX_CONCURRENT_REQUESTS: usize = <span class="number">20</span>;
+
+        <span class="comment">// This is needed because sometimes we need to automatically
+        // claim some one-time keys to unwedge an existing Olm session.
+        </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = <span class="self">self</span>.claim_one_time_keys(iter::empty()).<span class="kw">await </span>{
+            <span class="macro">warn!</span>(<span class="string">&quot;Error while claiming one-time keys {:?}&quot;</span>, e);
+        }
+
+        <span class="kw">let </span>outgoing_requests = stream::iter(
+            <span class="self">self</span>.olm_machine().ok_or(Error::AuthenticationRequired)<span class="question-mark">?</span>.outgoing_requests().<span class="kw">await</span><span class="question-mark">?</span>,
+        )
+        .map(|r| <span class="self">self</span>.send_outgoing_request(r));
+
+        <span class="kw">let </span>requests = outgoing_requests.buffer_unordered(MAX_CONCURRENT_REQUESTS);
+
+        requests
+            .for_each(|r| <span class="kw">async move </span>{
+                <span class="kw">match </span>r {
+                    <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; (),
+                    <span class="prelude-val">Err</span>(e) =&gt; <span class="macro">warn!</span>(error = <span class="question-mark">?</span>e, <span class="string">&quot;Error when sending out an outgoing E2EE request&quot;</span>),
+                }
+            })
+            .<span class="kw">await</span>;
+
+        <span class="prelude-val">Ok</span>(())
+    }
+}
+
+<span class="doccomment">/// A high-level API to manage the client&#39;s encryption.
+///
+/// To get this, use [`Client::encryption()`].
+</span><span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Encryption {
+    <span class="doccomment">/// The underlying client.
+    </span>client: Client,
+}
+
+<span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+</span><span class="kw">impl </span>Encryption {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(client: Client) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ client }
+    }
+
+    <span class="doccomment">/// Get the public ed25519 key of our own device. This is usually what is
+    /// called the fingerprint of the device.
+    </span><span class="kw">pub async fn </span>ed25519_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+        <span class="self">self</span>.client.olm_machine().map(|o| o.identity_keys().ed25519.to_base64())
+    }
+
+    <span class="doccomment">/// Get the status of the private cross signing keys.
+    ///
+    /// This can be used to check which private cross signing keys we have
+    /// stored locally.
+    </span><span class="kw">pub async fn </span>cross_signing_status(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;CrossSigningStatus&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(machine) = <span class="self">self</span>.client.olm_machine() {
+            <span class="prelude-val">Some</span>(machine.cross_signing_status().<span class="kw">await</span>)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>}
+    }
+
+    <span class="doccomment">/// Get all the tracked users we know about
+    ///
+    /// Tracked users are users for which we keep the device list of E2EE
+    /// capable devices up to date.
+    </span><span class="kw">pub async fn </span>tracked_users(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashSet&lt;OwnedUserId&gt; {
+        <span class="self">self</span>.client.olm_machine().map(|o| o.tracked_users()).unwrap_or_default()
+    }
+
+    <span class="doccomment">/// Get a verification object with the given flow id.
+    </span><span class="kw">pub async fn </span>get_verification(<span class="kw-2">&amp;</span><span class="self">self</span>, user_id: <span class="kw-2">&amp;</span>UserId, flow_id: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;Verification&gt; {
+        <span class="kw">let </span>olm = <span class="self">self</span>.client.olm_machine()<span class="question-mark">?</span>;
+        <span class="attr">#[allow(clippy::bind_instead_of_map)]
+        </span>olm.get_verification(user_id, flow_id).and_then(|v| <span class="kw">match </span>v {
+            matrix_sdk_base::crypto::Verification::SasV1(s) =&gt; {
+                <span class="prelude-val">Some</span>(SasVerification { inner: s, client: <span class="self">self</span>.client.clone() }.into())
+            }
+            <span class="attr">#[cfg(feature = <span class="string">&quot;qrcode&quot;</span>)]
+            </span>matrix_sdk_base::crypto::Verification::QrV1(qr) =&gt; {
+                <span class="prelude-val">Some</span>(verification::QrVerification { inner: qr, client: <span class="self">self</span>.client.clone() }.into())
+            }
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        })
+    }
+
+    <span class="doccomment">/// Get a `VerificationRequest` object for the given user with the given
+    /// flow id.
+    </span><span class="kw">pub async fn </span>get_verification_request(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        user_id: <span class="kw-2">&amp;</span>UserId,
+        flow_id: <span class="kw">impl </span>AsRef&lt;str&gt;,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;VerificationRequest&gt; {
+        <span class="kw">let </span>olm = <span class="self">self</span>.client.olm_machine()<span class="question-mark">?</span>;
+
+        olm.get_verification_request(user_id, flow_id)
+            .map(|r| VerificationRequest { inner: r, client: <span class="self">self</span>.client.clone() })
+    }
+
+    <span class="doccomment">/// Get a specific device of a user.
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - The unique id of the user that the device belongs to.
+    ///
+    /// * `device_id` - The unique id of the device.
+    ///
+    /// Returns a `Device` if one is found and the crypto store didn&#39;t throw an
+    /// error.
+    ///
+    /// This will always return None if the client hasn&#39;t been logged in.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use matrix_sdk::{Client, ruma::{device_id, user_id}};
+    /// # use url::Url;
+    /// # use futures::executor::block_on;
+    /// # block_on(async {
+    /// # let alice = user_id!(&quot;@alice:example.org&quot;);
+    /// # let homeserver = Url::parse(&quot;http://example.com&quot;)?;
+    /// # let client = Client::new(homeserver).await?;
+    /// if let Some(device) =
+    ///     client.encryption().get_device(alice, device_id!(&quot;DEVICEID&quot;)).await?
+    /// {
+    ///     println!(&quot;{:?}&quot;, device.is_verified());
+    ///
+    ///     if !device.is_verified() {
+    ///         let verification = device.request_verification().await?;
+    ///     }
+    /// }
+    /// # anyhow::Ok(()) });
+    /// ```
+    </span><span class="kw">pub async fn </span>get_device(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        user_id: <span class="kw-2">&amp;</span>UserId,
+        device_id: <span class="kw-2">&amp;</span>DeviceId,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Device&gt;, CryptoStoreError&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(machine) = <span class="self">self</span>.client.olm_machine() {
+            <span class="kw">let </span>device = machine.get_device(user_id, device_id, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(device.map(|d| Device { inner: d, client: <span class="self">self</span>.client.clone() }))
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+        }
+    }
+
+    <span class="doccomment">/// Get a map holding all the devices of an user.
+    ///
+    /// This will always return an empty map if the client hasn&#39;t been logged
+    /// in.
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - The unique id of the user that the devices belong to.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use matrix_sdk::{Client, ruma::user_id};
+    /// # use url::Url;
+    /// # use futures::executor::block_on;
+    /// # block_on(async {
+    /// # let alice = user_id!(&quot;@alice:example.org&quot;);
+    /// # let homeserver = Url::parse(&quot;http://example.com&quot;)?;
+    /// # let client = Client::new(homeserver).await?;
+    /// let devices = client.encryption().get_user_devices(alice).await?;
+    ///
+    /// for device in devices.devices() {
+    ///     println!(&quot;{:?}&quot;, device);
+    /// }
+    /// # anyhow::Ok(()) });
+    /// ```
+    </span><span class="kw">pub async fn </span>get_user_devices(<span class="kw-2">&amp;</span><span class="self">self</span>, user_id: <span class="kw-2">&amp;</span>UserId) -&gt; <span class="prelude-ty">Result</span>&lt;UserDevices, Error&gt; {
+        <span class="kw">let </span>devices = <span class="self">self
+            </span>.client
+            .olm_machine()
+            .ok_or(Error::AuthenticationRequired)<span class="question-mark">?
+            </span>.get_user_devices(user_id, <span class="prelude-val">None</span>)
+            .<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(UserDevices { inner: devices, client: <span class="self">self</span>.client.clone() })
+    }
+
+    <span class="doccomment">/// Get a E2EE identity of an user.
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - The unique id of the user that the identity belongs to.
+    ///
+    /// Returns a `UserIdentity` if one is found and the crypto store
+    /// didn&#39;t throw an error.
+    ///
+    /// This will always return None if the client hasn&#39;t been logged in.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use matrix_sdk::{Client, ruma::user_id};
+    /// # use url::Url;
+    /// # use futures::executor::block_on;
+    /// # block_on(async {
+    /// # let alice = user_id!(&quot;@alice:example.org&quot;);
+    /// # let homeserver = Url::parse(&quot;http://example.com&quot;)?;
+    /// # let client = Client::new(homeserver).await?;
+    /// let user = client.encryption().get_user_identity(alice).await?;
+    ///
+    /// if let Some(user) = user {
+    ///     println!(&quot;{:?}&quot;, user.is_verified());
+    ///
+    ///     let verification = user.request_verification().await?;
+    /// }
+    /// # anyhow::Ok(()) });
+    /// ```
+    </span><span class="kw">pub async fn </span>get_user_identity(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        user_id: <span class="kw-2">&amp;</span>UserId,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::encryption::identities::UserIdentity&gt;, CryptoStoreError&gt; {
+        <span class="kw">use </span><span class="kw">crate</span>::encryption::identities::UserIdentity;
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(olm) = <span class="self">self</span>.client.olm_machine() {
+            <span class="kw">let </span>identity = olm.get_identity(user_id, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+            <span class="prelude-val">Ok</span>(identity.map(|i| <span class="kw">match </span>i {
+                matrix_sdk_base::crypto::UserIdentities::Own(i) =&gt; {
+                    UserIdentity::new_own(<span class="self">self</span>.client.clone(), i)
+                }
+                matrix_sdk_base::crypto::UserIdentities::Other(i) =&gt; {
+                    UserIdentity::new(<span class="self">self</span>.client.clone(), i, <span class="self">self</span>.client.get_dm_room(user_id))
+                }
+            }))
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+        }
+    }
+
+    <span class="doccomment">/// Create and upload a new cross signing identity.
+    ///
+    /// # Arguments
+    ///
+    /// * `auth_data` - This request requires user interactive auth, the first
+    /// request needs to set this to `None` and will always fail with an
+    /// `UiaaResponse`. The response will contain information for the
+    /// interactive auth and the same request needs to be made but this time
+    /// with some `auth_data` provided.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use std::collections::BTreeMap;
+    /// # use matrix_sdk::{ruma::api::client::uiaa, Client};
+    /// # use url::Url;
+    /// # use futures::executor::block_on;
+    /// # use serde_json::json;
+    /// # block_on(async {
+    /// # let homeserver = Url::parse(&quot;http://example.com&quot;)?;
+    /// # let client = Client::new(homeserver).await?;
+    /// if let Err(e) = client.encryption().bootstrap_cross_signing(None).await {
+    ///     if let Some(response) = e.as_uiaa_response() {
+    ///         let mut password = uiaa::Password::new(
+    ///             uiaa::UserIdentifier::UserIdOrLocalpart(&quot;example&quot;),
+    ///             &quot;wordpass&quot;,
+    ///         );
+    ///         password.session = response.session.as_deref();
+    ///
+    ///         client
+    ///             .encryption()
+    ///             .bootstrap_cross_signing(Some(uiaa::AuthData::Password(password)))
+    ///             .await
+    ///             .expect(&quot;Couldn&#39;t bootstrap cross signing&quot;)
+    ///     } else {
+    ///         panic!(&quot;Error durign cross signing bootstrap {:#?}&quot;, e);
+    ///     }
+    /// }
+    /// # anyhow::Ok(()) });
+    </span><span class="kw">pub async fn </span>bootstrap_cross_signing(<span class="kw-2">&amp;</span><span class="self">self</span>, auth_data: <span class="prelude-ty">Option</span>&lt;AuthData&lt;<span class="lifetime">&#39;_</span>&gt;&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>olm = <span class="self">self</span>.client.olm_machine().ok_or(Error::AuthenticationRequired)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>(request, signature_request) = olm.bootstrap_cross_signing(<span class="bool-val">false</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="kw">let </span>request = <span class="macro">assign!</span>(UploadSigningKeysRequest::new(), {
+            auth: auth_data,
+            master_key: request.master_key.map(|c| c.to_raw()),
+            self_signing_key: request.self_signing_key.map(|c| c.to_raw()),
+            user_signing_key: request.user_signing_key.map(|c| c.to_raw()),
+        });
+
+        <span class="self">self</span>.client.send(request, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="self">self</span>.client.send(signature_request, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="doccomment">/// Export E2EE keys that match the given predicate encrypting them with the
+    /// given passphrase.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The file path where the exported key file will be saved.
+    ///
+    /// * `passphrase` - The passphrase that will be used to encrypt the
+    ///   exported
+    /// room keys.
+    ///
+    /// * `predicate` - A closure that will be called for every known
+    /// `InboundGroupSession`, which represents a room key. If the closure
+    /// returns `true` the `InboundGroupSessoin` will be included in the export,
+    /// if the closure returns `false` it will not be included.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if it isn&#39;t run on a Tokio runtime.
+    ///
+    /// This method will panic if it can&#39;t get enough randomness from the OS to
+    /// encrypt the exported keys securely.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use std::{path::PathBuf, time::Duration};
+    /// # use matrix_sdk::{
+    /// #     Client, config::SyncSettings,
+    /// #     ruma::room_id,
+    /// # };
+    /// # use futures::executor::block_on;
+    /// # use url::Url;
+    /// # block_on(async {
+    /// # let homeserver = Url::parse(&quot;http://localhost:8080&quot;)?;
+    /// # let mut client = Client::new(homeserver).await?;
+    /// let path = PathBuf::from(&quot;/home/example/e2e-keys.txt&quot;);
+    /// // Export all room keys.
+    /// client
+    ///     .encryption()
+    ///     .export_room_keys(path, &quot;secret-passphrase&quot;, |_| true)
+    ///     .await?;
+    ///
+    /// // Export only the room keys for a certain room.
+    /// let path = PathBuf::from(&quot;/home/example/e2e-room-keys.txt&quot;);
+    /// let room_id = room_id!(&quot;!test:localhost&quot;);
+    ///
+    /// client
+    ///     .encryption()
+    ///     .export_room_keys(path, &quot;secret-passphrase&quot;, |s| s.room_id() == room_id)
+    ///     .await?;
+    /// # anyhow::Ok(()) });
+    /// ```
+    </span><span class="attr">#[cfg(not(target_arch = <span class="string">&quot;wasm32&quot;</span>))]
+    </span><span class="kw">pub async fn </span>export_room_keys(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        path: PathBuf,
+        passphrase: <span class="kw-2">&amp;</span>str,
+        predicate: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;</span>matrix_sdk_base::crypto::olm::InboundGroupSession) -&gt; bool,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>olm = <span class="self">self</span>.client.olm_machine().ok_or(Error::AuthenticationRequired)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>keys = olm.export_room_keys(predicate).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>passphrase = zeroize::Zeroizing::new(passphrase.to_owned());
+
+        <span class="kw">let </span>encrypt = <span class="kw">move </span>|| -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+            <span class="kw">let </span>export: String =
+                matrix_sdk_base::crypto::encrypt_room_key_export(<span class="kw-2">&amp;</span>keys, <span class="kw-2">&amp;</span>passphrase, <span class="number">500_000</span>)<span class="question-mark">?</span>;
+            <span class="kw">let </span><span class="kw-2">mut </span>file = std::fs::File::create(path)<span class="question-mark">?</span>;
+            file.write_all(<span class="kw-2">&amp;</span>export.into_bytes())<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(())
+        };
+
+        <span class="kw">let </span>task = tokio::task::spawn_blocking(encrypt);
+        task.<span class="kw">await</span>.expect(<span class="string">&quot;Task join error&quot;</span>)
+    }
+
+    <span class="doccomment">/// Import E2EE keys from the given file path.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The file path where the exported key file will can be found.
+    ///
+    /// * `passphrase` - The passphrase that should be used to decrypt the
+    /// exported room keys.
+    ///
+    /// Returns a tuple of numbers that represent the number of sessions that
+    /// were imported and the total number of sessions that were found in the
+    /// key export.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if it isn&#39;t run on a Tokio runtime.
+    ///
+    /// ```no_run
+    /// # use std::{path::PathBuf, time::Duration};
+    /// # use matrix_sdk::{
+    /// #     Client, config::SyncSettings,
+    /// #     ruma::room_id,
+    /// # };
+    /// # use futures::executor::block_on;
+    /// # use url::Url;
+    /// # block_on(async {
+    /// # let homeserver = Url::parse(&quot;http://localhost:8080&quot;)?;
+    /// # let mut client = Client::new(homeserver).await?;
+    /// let path = PathBuf::from(&quot;/home/example/e2e-keys.txt&quot;);
+    /// let result =
+    ///     client.encryption().import_room_keys(path, &quot;secret-passphrase&quot;).await?;
+    ///
+    /// println!(
+    ///     &quot;Imported {} room keys out of {}&quot;,
+    ///     result.imported_count, result.total_count
+    /// );
+    /// # anyhow::Ok(()) });
+    /// ```
+    </span><span class="attr">#[cfg(not(target_arch = <span class="string">&quot;wasm32&quot;</span>))]
+    </span><span class="kw">pub async fn </span>import_room_keys(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        path: PathBuf,
+        passphrase: <span class="kw-2">&amp;</span>str,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;RoomKeyImportResult, RoomKeyImportError&gt; {
+        <span class="kw">let </span>olm = <span class="self">self</span>.client.olm_machine().ok_or(RoomKeyImportError::StoreClosed)<span class="question-mark">?</span>;
+        <span class="kw">let </span>passphrase = zeroize::Zeroizing::new(passphrase.to_owned());
+
+        <span class="kw">let </span>decrypt = <span class="kw">move </span>|| {
+            <span class="kw">let </span>file = std::fs::File::open(path)<span class="question-mark">?</span>;
+            matrix_sdk_base::crypto::decrypt_room_key_export(file, <span class="kw-2">&amp;</span>passphrase)
+        };
+
+        <span class="kw">let </span>task = tokio::task::spawn_blocking(decrypt);
+        <span class="kw">let </span>import = task.<span class="kw">await</span>.expect(<span class="string">&quot;Task join error&quot;</span>)<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(olm.import_room_keys(import, <span class="bool-val">false</span>, |<span class="kw">_</span>, <span class="kw">_</span>| {}).<span class="kw">await</span><span class="question-mark">?</span>)
+    }
+}
+
+<span class="attr">#[cfg(all(test, not(target_arch = <span class="string">&quot;wasm32&quot;</span>)))]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>matrix_sdk_test::{async_test, test_json, EventBuilder, JoinedRoomBuilder, StateTestEvent};
+    <span class="kw">use </span>ruma::{
+        event_id,
+        events::reaction::{ReactionEventContent, Relation},
+    };
+    <span class="kw">use </span>serde_json::json;
+    <span class="kw">use </span>wiremock::{
+        matchers::{method, path_regex},
+        Mock, MockServer, ResponseTemplate,
+    };
+
+    <span class="kw">use </span><span class="kw">crate</span>::test_utils::logged_in_client;
+
+    <span class="attr">#[async_test]
+    </span><span class="kw">async fn </span>test_reaction_sending() {
+        <span class="kw">let </span>server = MockServer::start().<span class="kw">await</span>;
+        <span class="kw">let </span>client = logged_in_client(<span class="prelude-val">Some</span>(server.uri())).<span class="kw">await</span>;
+
+        <span class="kw">let </span>event_id = <span class="macro">event_id!</span>(<span class="string">&quot;$2:example.org&quot;</span>);
+        <span class="kw">let </span>room_id = <span class="kw-2">&amp;</span>test_json::DEFAULT_SYNC_ROOM_ID;
+
+        Mock::given(method(<span class="string">&quot;PUT&quot;</span>))
+            .and(path_regex(<span class="string">r&quot;^/_matrix/client/r0/rooms/.*/send/m%2Ereaction/.*&quot;</span>.to_owned()))
+            .respond_with(ResponseTemplate::new(<span class="number">200</span>).set_body_json(<span class="macro">json!</span>({
+                <span class="string">&quot;event_id&quot;</span>: event_id,
+            })))
+            .mount(<span class="kw-2">&amp;</span>server)
+            .<span class="kw">await</span>;
+
+        <span class="kw">let </span>response = EventBuilder::default()
+            .add_joined_room(
+                JoinedRoomBuilder::default()
+                    .add_state_event(StateTestEvent::Member)
+                    .add_state_event(StateTestEvent::PowerLevels)
+                    .add_state_event(StateTestEvent::Encryption),
+            )
+            .build_sync_response();
+
+        client.base_client().receive_sync_response(response).<span class="kw">await</span>.unwrap();
+
+        <span class="kw">let </span>room = client.get_joined_room(room_id).expect(<span class="string">&quot;Room should exist&quot;</span>);
+        <span class="macro">assert!</span>(room.is_encrypted());
+
+        <span class="kw">let </span>event_id = <span class="macro">event_id!</span>(<span class="string">&quot;$1:example.org&quot;</span>);
+        <span class="kw">let </span>reaction = ReactionEventContent::new(Relation::new(event_id.into(), <span class="string">&quot;🐈&quot;</span>.to_owned()));
+        room.send(reaction, <span class="prelude-val">None</span>).<span class="kw">await</span>.expect(<span class="string">&quot;Sending the reaction should not fail&quot;</span>);
+
+        room.send_raw(<span class="macro">json!</span>({}), <span class="string">&quot;m.reaction&quot;</span>, <span class="prelude-val">None</span>)
+            .<span class="kw">await
+            </span>.expect(<span class="string">&quot;Sending the reaction should not fail&quot;</span>);
+    }
+}
+</code></pre></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="matrix_sdk" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (09508489e 2022-11-04)" ></div></body></html>

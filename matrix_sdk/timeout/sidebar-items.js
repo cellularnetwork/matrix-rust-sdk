@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":[["timeout","Wait for `future` to be completed. `future` needs to return a `Result`."]],"struct":[["ElapsedError","Error type notifying that a timeout has elapsed."]]};

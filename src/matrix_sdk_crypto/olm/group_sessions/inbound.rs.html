@@ -1,0 +1,1228 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/matrix-sdk-crypto/src/olm/group_sessions/inbound.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>inbound.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../../normalize.css"><link rel="stylesheet" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../../ayu.css" disabled><link rel="stylesheet" href="../../../../dark.css" disabled><link rel="stylesheet" href="../../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../../storage.js"></script><script defer src="../../../../source-script.js"></script><script defer src="../../../../source-files.js"></script><script defer src="../../../../main.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../../../matrix_sdk_crypto/index.html"><img class="rust-logo" src="../../../../rust-logo.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../wheel.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<span id="2">2</span>
+<span id="3">3</span>
+<span id="4">4</span>
+<span id="5">5</span>
+<span id="6">6</span>
+<span id="7">7</span>
+<span id="8">8</span>
+<span id="9">9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
+<span id="89">89</span>
+<span id="90">90</span>
+<span id="91">91</span>
+<span id="92">92</span>
+<span id="93">93</span>
+<span id="94">94</span>
+<span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
+<span id="546">546</span>
+<span id="547">547</span>
+<span id="548">548</span>
+<span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
+<span id="553">553</span>
+<span id="554">554</span>
+<span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
+<span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright 2020 The Matrix.org Foundation C.I.C.
+//
+// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+</span><span class="kw">use </span>std::{
+    fmt,
+    ops::Deref,
+    sync::{
+        atomic::{AtomicBool, Ordering::SeqCst},
+        Arc,
+    },
+};
+
+<span class="kw">use </span>matrix_sdk_common::locks::Mutex;
+<span class="kw">use </span>ruma::{
+    events::{room::history_visibility::HistoryVisibility, AnyTimelineEvent},
+    serde::Raw,
+    DeviceKeyAlgorithm, OwnedRoomId, RoomId,
+};
+<span class="kw">use </span>serde::{Deserialize, Serialize};
+<span class="kw">use </span>serde_json::Value;
+<span class="kw">use </span>vodozemac::{
+    megolm::{
+        DecryptedMessage, DecryptionError, InboundGroupSession <span class="kw">as </span>InnerSession,
+        InboundGroupSessionPickle, MegolmMessage, SessionConfig, SessionOrdering,
+    },
+    Curve25519PublicKey, Ed25519PublicKey, PickleError,
+};
+
+<span class="kw">use super</span>::{
+    BackedUpRoomKey, ExportedRoomKey, OutboundGroupSession, SessionCreationError, SessionKey,
+};
+<span class="kw">use crate</span>::{
+    error::{EventError, MegolmResult},
+    types::{
+        deserialize_curve_key,
+        events::{
+            forwarded_room_key::{
+                ForwardedMegolmV1AesSha2Content, ForwardedMegolmV2AesSha2Content,
+                ForwardedRoomKeyContent,
+            },
+            olm_v1::DecryptedForwardedRoomKeyEvent,
+            room::encrypted::{EncryptedEvent, RoomEventEncryptionScheme},
+        },
+        serialize_curve_key, EventEncryptionAlgorithm, SigningKeys,
+    },
+};
+
+<span class="comment">// TODO add creation times to the inbound group sessions so we can export
+// sessions that were created between some time period, this should only be set
+// for non-imported sessions.
+
+</span><span class="doccomment">/// Inbound group session.
+///
+/// Inbound group sessions are used to exchange room messages between a group of
+/// participants. Inbound group sessions are used to decrypt the room messages.
+</span><span class="attr">#[derive(Clone)]
+</span><span class="kw">pub struct </span>InboundGroupSession {
+    inner: Arc&lt;Mutex&lt;InnerSession&gt;&gt;,
+    history_visibility: Arc&lt;<span class="prelude-ty">Option</span>&lt;HistoryVisibility&gt;&gt;,
+    <span class="doccomment">/// The SessionId associated to this GroupSession
+    </span><span class="kw">pub </span>session_id: Arc&lt;str&gt;,
+    first_known_index: u32,
+    <span class="doccomment">/// The sender_key associated to this GroupSession
+    </span><span class="kw">pub </span>sender_key: Curve25519PublicKey,
+    <span class="doccomment">/// Map of DeviceKeyAlgorithm to the public ed25519 key of the account
+    </span><span class="kw">pub </span>signing_keys: Arc&lt;SigningKeys&lt;DeviceKeyAlgorithm&gt;&gt;,
+    <span class="doccomment">/// The Room this GroupSession belongs to
+    </span><span class="kw">pub </span>room_id: Arc&lt;RoomId&gt;,
+    imported: bool,
+    algorithm: Arc&lt;EventEncryptionAlgorithm&gt;,
+    backed_up: Arc&lt;AtomicBool&gt;,
+}
+
+<span class="kw">impl </span>InboundGroupSession {
+    <span class="doccomment">/// Create a new inbound group session for the given room.
+    ///
+    /// These sessions are used to decrypt room messages.
+    ///
+    /// # Arguments
+    ///
+    /// * `sender_key` - The public curve25519 key of the account that
+    /// sent us the session
+    ///
+    /// * `signing_key` - The public ed25519 key of the account that
+    /// sent us the session.
+    ///
+    /// * `room_id` - The id of the room that the session is used in.
+    ///
+    /// * `session_key` - The private session key that is used to decrypt
+    /// messages.
+    </span><span class="kw">pub fn </span>new(
+        sender_key: Curve25519PublicKey,
+        signing_key: Ed25519PublicKey,
+        room_id: <span class="kw-2">&amp;</span>RoomId,
+        session_key: <span class="kw-2">&amp;</span>SessionKey,
+        encryption_algorithm: EventEncryptionAlgorithm,
+        history_visibility: <span class="prelude-ty">Option</span>&lt;HistoryVisibility&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, SessionCreationError&gt; {
+        <span class="kw">let </span>config = OutboundGroupSession::session_config(<span class="kw-2">&amp;</span>encryption_algorithm)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>session = InnerSession::new(session_key, config);
+        <span class="kw">let </span>session_id = session.session_id();
+        <span class="kw">let </span>first_known_index = session.first_known_index();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>keys = SigningKeys::new();
+        keys.insert(DeviceKeyAlgorithm::Ed25519, signing_key.into());
+
+        <span class="prelude-val">Ok</span>(InboundGroupSession {
+            inner: Arc::new(Mutex::new(session)),
+            history_visibility: history_visibility.into(),
+            session_id: session_id.into(),
+            first_known_index,
+            sender_key,
+            signing_keys: keys.into(),
+            room_id: room_id.into(),
+            imported: <span class="bool-val">false</span>,
+            algorithm: encryption_algorithm.into(),
+            backed_up: AtomicBool::new(<span class="bool-val">false</span>).into(),
+        })
+    }
+
+    <span class="doccomment">/// Create a InboundGroupSession from an exported version of the group
+    /// session.
+    ///
+    /// Most notably this can be called with an `ExportedRoomKey` from a
+    /// previous [`export()`] call.
+    ///
+    /// [`export()`]: #method.export
+    </span><span class="kw">pub fn </span>from_export(exported_session: <span class="kw-2">&amp;</span>ExportedRoomKey) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, SessionCreationError&gt; {
+        <span class="self">Self</span>::try_from(exported_session)
+    }
+
+    <span class="attr">#[allow(dead_code)]
+    </span><span class="kw">fn </span>from_backup(
+        room_id: <span class="kw-2">&amp;</span>RoomId,
+        backup: BackedUpRoomKey,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, SessionCreationError&gt; {
+        <span class="comment">// We&#39;re using this session only to get the session id, the session
+        // config doesn&#39;t matter here.
+        </span><span class="kw">let </span>session = InnerSession::import(<span class="kw-2">&amp;</span>backup.session_key, SessionConfig::default());
+        <span class="kw">let </span>session_id = session.session_id();
+
+        <span class="self">Self</span>::from_export(<span class="kw-2">&amp;</span>ExportedRoomKey {
+            algorithm: backup.algorithm,
+            room_id: room_id.to_owned(),
+            sender_key: backup.sender_key,
+            session_id,
+            forwarding_curve25519_key_chain: <span class="macro">vec!</span>[],
+            session_key: backup.session_key,
+            sender_claimed_keys: backup.sender_claimed_keys,
+        })
+    }
+
+    <span class="doccomment">/// Store the group session as a base64 encoded string.
+    ///
+    /// # Arguments
+    ///
+    /// * `pickle_mode` - The mode that was used to pickle the group session,
+    /// either an unencrypted mode or an encrypted using passphrase.
+    </span><span class="kw">pub async fn </span>pickle(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PickledInboundGroupSession {
+        <span class="kw">let </span>pickle = <span class="self">self</span>.inner.lock().<span class="kw">await</span>.pickle();
+
+        PickledInboundGroupSession {
+            pickle,
+            sender_key: <span class="self">self</span>.sender_key,
+            signing_key: (<span class="kw-2">*</span><span class="self">self</span>.signing_keys).clone(),
+            room_id: (<span class="kw-2">*</span><span class="self">self</span>.room_id).to_owned(),
+            imported: <span class="self">self</span>.imported,
+            backed_up: <span class="self">self</span>.backed_up(),
+            history_visibility: <span class="self">self</span>.history_visibility.as_ref().clone(),
+            algorithm: (<span class="kw-2">*</span><span class="self">self</span>.algorithm).to_owned(),
+        }
+    }
+
+    <span class="doccomment">/// Export this session at the first known message index.
+    ///
+    /// If only a limited part of this session should be exported use
+    /// [`export_at_index()`](#method.export_at_index).
+    </span><span class="kw">pub async fn </span>export(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ExportedRoomKey {
+        <span class="self">self</span>.export_at_index(<span class="self">self</span>.first_known_index()).<span class="kw">await
+    </span>}
+
+    <span class="doccomment">/// Get the sender key that this session was received from.
+    </span><span class="kw">pub fn </span>sender_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Curve25519PublicKey {
+        <span class="self">self</span>.sender_key
+    }
+
+    <span class="doccomment">/// Has the session been backed up to the server.
+    </span><span class="kw">pub fn </span>backed_up(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.backed_up.load(SeqCst)
+    }
+
+    <span class="doccomment">/// Reset the backup state of the inbound group session.
+    </span><span class="kw">pub fn </span>reset_backup_state(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.backed_up.store(<span class="bool-val">false</span>, SeqCst)
+    }
+
+    <span class="doccomment">/// For testing, allow to manually mark this GroupSession to have been
+    /// backed up
+    </span><span class="kw">pub fn </span>mark_as_backed_up(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.backed_up.store(<span class="bool-val">true</span>, SeqCst)
+    }
+
+    <span class="doccomment">/// Get the map of signing keys this session was received from.
+    </span><span class="kw">pub fn </span>signing_keys(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SigningKeys&lt;DeviceKeyAlgorithm&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.signing_keys
+    }
+
+    <span class="doccomment">/// Export this session at the given message index.
+    </span><span class="kw">pub async fn </span>export_at_index(<span class="kw-2">&amp;</span><span class="self">self</span>, message_index: u32) -&gt; ExportedRoomKey {
+        <span class="kw">let </span>message_index = std::cmp::max(<span class="self">self</span>.first_known_index(), message_index);
+
+        <span class="kw">let </span>session_key =
+            <span class="self">self</span>.inner.lock().<span class="kw">await</span>.export_at(message_index).expect(<span class="string">&quot;Can&#39;t export session&quot;</span>);
+
+        ExportedRoomKey {
+            algorithm: <span class="self">self</span>.algorithm().to_owned(),
+            room_id: (<span class="kw-2">*</span><span class="self">self</span>.room_id).to_owned(),
+            sender_key: <span class="self">self</span>.sender_key,
+            session_id: <span class="self">self</span>.session_id().to_owned(),
+            forwarding_curve25519_key_chain: <span class="macro">vec!</span>[],
+            sender_claimed_keys: (<span class="kw-2">*</span><span class="self">self</span>.signing_keys).clone(),
+            session_key,
+        }
+    }
+
+    <span class="doccomment">/// Restore a Session from a previously pickled string.
+    ///
+    /// Returns the restored group session or a `UnpicklingError` if there
+    /// was an error.
+    ///
+    /// # Arguments
+    ///
+    /// * `pickle` - The pickled version of the `InboundGroupSession`.
+    ///
+    /// * `pickle_mode` - The mode that was used to pickle the session, either
+    /// an unencrypted mode or an encrypted using passphrase.
+    </span><span class="kw">pub fn </span>from_pickle(pickle: PickledInboundGroupSession) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, PickleError&gt; {
+        <span class="kw">let </span>session: InnerSession = pickle.pickle.into();
+        <span class="kw">let </span>first_known_index = session.first_known_index();
+        <span class="kw">let </span>session_id = session.session_id();
+
+        <span class="prelude-val">Ok</span>(InboundGroupSession {
+            inner: Mutex::new(session).into(),
+            session_id: session_id.into(),
+            sender_key: pickle.sender_key,
+            history_visibility: pickle.history_visibility.into(),
+            first_known_index,
+            signing_keys: pickle.signing_key.into(),
+            room_id: (<span class="kw-2">*</span>pickle.room_id).into(),
+            backed_up: AtomicBool::from(pickle.backed_up).into(),
+            algorithm: pickle.algorithm.into(),
+            imported: pickle.imported,
+        })
+    }
+
+    <span class="doccomment">/// The room where this session is used in.
+    </span><span class="kw">pub fn </span>room_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>RoomId {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.room_id
+    }
+
+    <span class="doccomment">/// Returns the unique identifier for this session.
+    </span><span class="kw">pub fn </span>session_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.session_id
+    }
+
+    <span class="doccomment">/// The algorithm that this inbound group session is using to decrypt
+    /// events.
+    </span><span class="kw">pub fn </span>algorithm(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>EventEncryptionAlgorithm {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.algorithm
+    }
+
+    <span class="doccomment">/// Get the first message index we know how to decrypt.
+    </span><span class="kw">pub fn </span>first_known_index(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+        <span class="self">self</span>.first_known_index
+    }
+
+    <span class="doccomment">/// Has the session been imported from a file or server-side backup? As
+    /// opposed to being directly received as an `m.room_key` event.
+    </span><span class="kw">pub fn </span>has_been_imported(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.imported
+    }
+
+    <span class="doccomment">/// Check if the `InboundGroupSession` is better than the given other
+    /// `InboundGroupSession`
+    </span><span class="kw">pub async fn </span>compare(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>InboundGroupSession) -&gt; SessionOrdering {
+        <span class="comment">// If this is the same object the ordering is the same, we can&#39;t compare because
+        // we would deadlock while trying to acquire the same lock twice.
+        </span><span class="kw">if </span>Arc::ptr_eq(<span class="kw-2">&amp;</span><span class="self">self</span>.inner, <span class="kw-2">&amp;</span>other.inner) {
+            SessionOrdering::Equal
+        } <span class="kw">else if </span><span class="self">self</span>.sender_key() != other.sender_key()
+            || <span class="self">self</span>.signing_keys() != other.signing_keys()
+            || <span class="self">self</span>.algorithm() != other.algorithm()
+            || <span class="self">self</span>.room_id() != other.room_id()
+        {
+            SessionOrdering::Unconnected
+        } <span class="kw">else </span>{
+            <span class="kw">let </span><span class="kw-2">mut </span>other = other.inner.lock().<span class="kw">await</span>;
+            <span class="self">self</span>.inner.lock().<span class="kw">await</span>.compare(<span class="kw-2">&amp;mut </span>other)
+        }
+    }
+
+    <span class="doccomment">/// Decrypt the given ciphertext.
+    ///
+    /// Returns the decrypted plaintext or an `DecryptionError` if
+    /// decryption failed.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The message that should be decrypted.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>decrypt_helper(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        message: <span class="kw-2">&amp;</span>MegolmMessage,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;DecryptedMessage, DecryptionError&gt; {
+        <span class="self">self</span>.inner.lock().<span class="kw">await</span>.decrypt(message)
+    }
+
+    <span class="doccomment">/// Export the inbound group session into a format that can be uploaded to
+    /// the server as a backup.
+    </span><span class="attr">#[cfg(feature = <span class="string">&quot;backups_v1&quot;</span>)]
+    </span><span class="kw">pub async fn </span>to_backup(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BackedUpRoomKey {
+        <span class="self">self</span>.export().<span class="kw">await</span>.into()
+    }
+
+    <span class="doccomment">/// Decrypt an event from a room timeline.
+    ///
+    /// # Arguments
+    ///
+    /// * `event` - The event that should be decrypted.
+    </span><span class="kw">pub async fn </span>decrypt(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        event: <span class="kw-2">&amp;</span>EncryptedEvent,
+    ) -&gt; MegolmResult&lt;(Raw&lt;AnyTimelineEvent&gt;, u32)&gt; {
+        <span class="kw">let </span>decrypted = <span class="kw">match </span><span class="kw-2">&amp;</span>event.content.scheme {
+            RoomEventEncryptionScheme::MegolmV1AesSha2(c) =&gt; {
+                <span class="self">self</span>.decrypt_helper(<span class="kw-2">&amp;</span>c.ciphertext).<span class="kw">await</span><span class="question-mark">?
+            </span>}
+            <span class="attr">#[cfg(feature = <span class="string">&quot;experimental-algorithms&quot;</span>)]
+            </span>RoomEventEncryptionScheme::MegolmV2AesSha2(c) =&gt; {
+                <span class="self">self</span>.decrypt_helper(<span class="kw-2">&amp;</span>c.ciphertext).<span class="kw">await</span><span class="question-mark">?
+            </span>}
+            RoomEventEncryptionScheme::Unknown(<span class="kw">_</span>) =&gt; {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(EventError::UnsupportedAlgorithm.into());
+            }
+        };
+
+        <span class="kw">let </span>plaintext = String::from_utf8_lossy(<span class="kw-2">&amp;</span>decrypted.plaintext);
+
+        <span class="kw">let </span><span class="kw-2">mut </span>decrypted_value = serde_json::from_str::&lt;Value&gt;(<span class="kw-2">&amp;</span>plaintext)<span class="question-mark">?</span>;
+        <span class="kw">let </span>decrypted_object = decrypted_value.as_object_mut().ok_or(EventError::NotAnObject)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>server_ts: i64 = event.origin_server_ts.<span class="number">0</span>.into();
+
+        decrypted_object.insert(<span class="string">&quot;sender&quot;</span>.to_owned(), event.sender.to_string().into());
+        decrypted_object.insert(<span class="string">&quot;event_id&quot;</span>.to_owned(), event.event_id.to_string().into());
+        decrypted_object.insert(<span class="string">&quot;origin_server_ts&quot;</span>.to_owned(), server_ts.into());
+
+        <span class="kw">let </span>room_id = decrypted_object
+            .get(<span class="string">&quot;room_id&quot;</span>)
+            .and_then(|r| r.as_str().and_then(|r| RoomId::parse(r).ok()));
+
+        <span class="comment">// Check that we have a room id and that the event wasn&#39;t forwarded from
+        // another room.
+        </span><span class="kw">if </span>room_id.as_deref() != <span class="prelude-val">Some</span>(<span class="self">self</span>.room_id()) {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(EventError::MismatchedRoom(<span class="self">self</span>.room_id().to_owned(), room_id).into());
+        }
+
+        decrypted_object.insert(
+            <span class="string">&quot;unsigned&quot;</span>.to_owned(),
+            serde_json::to_value(<span class="kw-2">&amp;</span>event.unsigned).unwrap_or_default(),
+        );
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(decrypted_content) =
+            decrypted_object.get_mut(<span class="string">&quot;content&quot;</span>).and_then(|c| c.as_object_mut())
+        {
+            <span class="kw">if </span>!decrypted_content.contains_key(<span class="string">&quot;m.relates_to&quot;</span>) {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(relation) = <span class="kw-2">&amp;</span>event.content.relates_to {
+                    decrypted_content.insert(<span class="string">&quot;m.relates_to&quot;</span>.to_owned(), relation.to_owned());
+                }
+            }
+        }
+
+        <span class="prelude-val">Ok</span>((
+            serde_json::from_value::&lt;Raw&lt;AnyTimelineEvent&gt;&gt;(decrypted_value)<span class="question-mark">?</span>,
+            decrypted.message_index,
+        ))
+    }
+}
+
+<span class="attr">#[cfg(not(tarpaulin_include))]
+</span><span class="kw">impl </span>fmt::Debug <span class="kw">for </span>InboundGroupSession {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        f.debug_struct(<span class="string">&quot;InboundGroupSession&quot;</span>).field(<span class="string">&quot;session_id&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.session_id()).finish()
+    }
+}
+
+<span class="kw">impl </span>PartialEq <span class="kw">for </span>InboundGroupSession {
+    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="self">self</span>.session_id() == other.session_id()
+    }
+}
+
+<span class="doccomment">/// A pickled version of an `InboundGroupSession`.
+///
+/// Holds all the information that needs to be stored in a database to restore
+/// an InboundGroupSession.
+</span><span class="attr">#[derive(Serialize, Deserialize)]
+#[allow(missing_debug_implementations)]
+</span><span class="kw">pub struct </span>PickledInboundGroupSession {
+    <span class="doccomment">/// The pickle string holding the InboundGroupSession.
+    </span><span class="kw">pub </span>pickle: InboundGroupSessionPickle,
+    <span class="doccomment">/// The public curve25519 key of the account that sent us the session
+    </span><span class="attr">#[serde(deserialize_with = <span class="string">&quot;deserialize_curve_key&quot;</span>, serialize_with = <span class="string">&quot;serialize_curve_key&quot;</span>)]
+    </span><span class="kw">pub </span>sender_key: Curve25519PublicKey,
+    <span class="doccomment">/// The public ed25519 key of the account that sent us the session.
+    </span><span class="kw">pub </span>signing_key: SigningKeys&lt;DeviceKeyAlgorithm&gt;,
+    <span class="doccomment">/// The id of the room that the session is used in.
+    </span><span class="kw">pub </span>room_id: OwnedRoomId,
+    <span class="doccomment">/// Flag remembering if the session was directly sent to us by the sender
+    /// or if it was imported.
+    </span><span class="kw">pub </span>imported: bool,
+    <span class="doccomment">/// Flag remembering if the session has been backed up.
+    </span><span class="attr">#[serde(default)]
+    </span><span class="kw">pub </span>backed_up: bool,
+    <span class="doccomment">/// History visibility of the room when the session was created.
+    </span><span class="kw">pub </span>history_visibility: <span class="prelude-ty">Option</span>&lt;HistoryVisibility&gt;,
+    <span class="doccomment">/// The algorithm of this inbound group session.
+    </span><span class="attr">#[serde(default = <span class="string">&quot;default_algorithm&quot;</span>)]
+    </span><span class="kw">pub </span>algorithm: EventEncryptionAlgorithm,
+}
+
+<span class="kw">fn </span>default_algorithm() -&gt; EventEncryptionAlgorithm {
+    EventEncryptionAlgorithm::MegolmV1AesSha2
+}
+
+<span class="kw">impl </span>TryFrom&lt;<span class="kw-2">&amp;</span>ExportedRoomKey&gt; <span class="kw">for </span>InboundGroupSession {
+    <span class="kw">type </span>Error = SessionCreationError;
+
+    <span class="kw">fn </span>try_from(key: <span class="kw-2">&amp;</span>ExportedRoomKey) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+        <span class="kw">let </span>config = OutboundGroupSession::session_config(<span class="kw-2">&amp;</span>key.algorithm)<span class="question-mark">?</span>;
+        <span class="kw">let </span>session = InnerSession::import(<span class="kw-2">&amp;</span>key.session_key, config);
+        <span class="kw">let </span>first_known_index = session.first_known_index();
+
+        <span class="prelude-val">Ok</span>(InboundGroupSession {
+            inner: Mutex::new(session).into(),
+            session_id: key.session_id.to_owned().into(),
+            sender_key: key.sender_key,
+            history_visibility: <span class="prelude-val">None</span>.into(),
+            first_known_index,
+            signing_keys: key.sender_claimed_keys.to_owned().into(),
+            room_id: key.room_id.to_owned().into(),
+            imported: <span class="bool-val">true</span>,
+            algorithm: key.algorithm.to_owned().into(),
+            backed_up: AtomicBool::from(<span class="bool-val">false</span>).into(),
+        })
+    }
+}
+
+<span class="kw">impl </span>From&lt;<span class="kw-2">&amp;</span>ForwardedMegolmV1AesSha2Content&gt; <span class="kw">for </span>InboundGroupSession {
+    <span class="kw">fn </span>from(value: <span class="kw-2">&amp;</span>ForwardedMegolmV1AesSha2Content) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>session = InnerSession::import(<span class="kw-2">&amp;</span>value.session_key, SessionConfig::version_1());
+        <span class="kw">let </span>session_id = session.session_id().into();
+        <span class="kw">let </span>first_known_index = session.first_known_index();
+
+        InboundGroupSession {
+            inner: Mutex::new(session).into(),
+            session_id,
+            sender_key: value.claimed_sender_key,
+            history_visibility: <span class="prelude-val">None</span>.into(),
+            first_known_index,
+            signing_keys: SigningKeys::from([(
+                DeviceKeyAlgorithm::Ed25519,
+                value.claimed_ed25519_key.into(),
+            )])
+            .into(),
+            room_id: value.room_id.to_owned().into(),
+            imported: <span class="bool-val">true</span>,
+            algorithm: EventEncryptionAlgorithm::MegolmV1AesSha2.into(),
+            backed_up: AtomicBool::from(<span class="bool-val">false</span>).into(),
+        }
+    }
+}
+
+<span class="kw">impl </span>From&lt;<span class="kw-2">&amp;</span>ForwardedMegolmV2AesSha2Content&gt; <span class="kw">for </span>InboundGroupSession {
+    <span class="kw">fn </span>from(value: <span class="kw-2">&amp;</span>ForwardedMegolmV2AesSha2Content) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>session = InnerSession::import(<span class="kw-2">&amp;</span>value.session_key, SessionConfig::version_2());
+        <span class="kw">let </span>session_id = session.session_id().into();
+        <span class="kw">let </span>first_known_index = session.first_known_index();
+
+        InboundGroupSession {
+            inner: Mutex::new(session).into(),
+            session_id,
+            sender_key: value.claimed_sender_key,
+            history_visibility: <span class="prelude-val">None</span>.into(),
+            first_known_index,
+            signing_keys: value.claimed_signing_keys.to_owned().into(),
+            room_id: value.room_id.to_owned().into(),
+            imported: <span class="bool-val">true</span>,
+            algorithm: EventEncryptionAlgorithm::MegolmV1AesSha2.into(),
+            backed_up: AtomicBool::from(<span class="bool-val">false</span>).into(),
+        }
+    }
+}
+
+<span class="kw">impl </span>TryFrom&lt;<span class="kw-2">&amp;</span>DecryptedForwardedRoomKeyEvent&gt; <span class="kw">for </span>InboundGroupSession {
+    <span class="kw">type </span>Error = SessionCreationError;
+
+    <span class="kw">fn </span>try_from(value: <span class="kw-2">&amp;</span>DecryptedForwardedRoomKeyEvent) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+        <span class="kw">match </span><span class="kw-2">&amp;</span>value.content {
+            ForwardedRoomKeyContent::MegolmV1AesSha2(c) =&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from(c.deref())),
+            <span class="attr">#[cfg(feature = <span class="string">&quot;experimental-algorithms&quot;</span>)]
+            </span>ForwardedRoomKeyContent::MegolmV2AesSha2(c) =&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from(c.deref())),
+            ForwardedRoomKeyContent::Unknown(c) =&gt; {
+                <span class="prelude-val">Err</span>(SessionCreationError::Algorithm(c.algorithm.to_owned()))
+            }
+        }
+    }
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>test {
+    <span class="kw">use </span>matrix_sdk_test::async_test;
+    <span class="kw">use </span>ruma::{device_id, room_id, user_id, DeviceId, UserId};
+    <span class="kw">use </span>vodozemac::{megolm::SessionOrdering, Curve25519PublicKey};
+
+    <span class="kw">use crate</span>::{olm::InboundGroupSession, ReadOnlyAccount};
+
+    <span class="kw">fn </span>alice_id() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>UserId {
+        <span class="macro">user_id!</span>(<span class="string">&quot;@alice:example.org&quot;</span>)
+    }
+
+    <span class="kw">fn </span>alice_device_id() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>DeviceId {
+        <span class="macro">device_id!</span>(<span class="string">&quot;ALICEDEVICE&quot;</span>)
+    }
+
+    <span class="attr">#[async_test]
+    </span><span class="kw">async fn </span>inbound_group_session_serialization() {
+        <span class="kw">let </span>pickle = <span class="string">r#&quot;
+        {
+            &quot;pickle&quot;: {
+                &quot;initial_ratchet&quot;: {
+                    &quot;inner&quot;: [ 124, 251, 213, 204, 108, 247, 54, 7, 179, 162, 15, 107, 154, 215,
+                               220, 46, 123, 113, 120, 162, 225, 246, 237, 203, 125, 102, 190, 212,
+                               229, 195, 136, 185, 26, 31, 77, 140, 144, 181, 152, 177, 46, 105,
+                               202, 6, 53, 158, 157, 170, 31, 155, 130, 87, 214, 110, 143, 55, 68,
+                               138, 41, 35, 242, 230, 194, 15, 16, 145, 116, 94, 89, 35, 79, 145,
+                               245, 117, 204, 173, 166, 178, 49, 131, 143, 61, 61, 15, 211, 167, 17,
+                               2, 79, 110, 149, 200, 223, 23, 185, 200, 29, 64, 55, 39, 147, 167,
+                               205, 224, 159, 101, 218, 249, 203, 30, 175, 174, 48, 252, 40, 131,
+                               52, 135, 91, 57, 211, 96, 105, 58, 55, 68, 250, 24 ],
+                    &quot;counter&quot;: 0
+                },
+                &quot;signing_key&quot;: [ 93, 185, 171, 61, 173, 100, 51, 9, 157, 180, 214, 39, 131, 80, 118,
+                                 130, 199, 232, 163, 197, 45, 23, 227, 100, 151, 59, 19, 102, 38,
+                                 149, 43, 38 ],
+                &quot;signing_key_verified&quot;: true,
+                &quot;config&quot;: {
+                  &quot;version&quot;: &quot;V1&quot;
+                }
+            },
+            &quot;sender_key&quot;: &quot;AmM1DvVJarsNNXVuX7OarzfT481N37GtDwvDVF0RcR8&quot;,
+            &quot;signing_key&quot;: {
+                &quot;ed25519&quot;: &quot;wTRTdz4rn4EY+68cKPzpMdQ6RAlg7T8cbTmEjaXuUww&quot;
+            },
+            &quot;room_id&quot;: &quot;!test:localhost&quot;,
+            &quot;forwarding_chains&quot;: [&quot;tb6kQKjk+SJl2KnfQ0lKVOZl6gDFMcsb9HcUP9k/4hc&quot;],
+            &quot;imported&quot;: false,
+            &quot;backed_up&quot;: false,
+            &quot;history_visibility&quot;: &quot;shared&quot;,
+            &quot;algorithm&quot;: &quot;m.megolm.v1.aes-sha2&quot;
+        }
+        &quot;#</span>;
+
+        <span class="kw">let </span>deserialized = serde_json::from_str(pickle).unwrap();
+
+        <span class="kw">let </span>unpickled = InboundGroupSession::from_pickle(deserialized).unwrap();
+
+        <span class="macro">assert_eq!</span>(unpickled.session_id(), <span class="string">&quot;XbmrPa1kMwmdtNYng1B2gsfoo8UtF+NklzsTZiaVKyY&quot;</span>);
+    }
+
+    <span class="attr">#[async_test]
+    </span><span class="kw">async fn </span>session_comparison() {
+        <span class="kw">let </span>alice = ReadOnlyAccount::new(alice_id(), alice_device_id());
+        <span class="kw">let </span>room_id = <span class="macro">room_id!</span>(<span class="string">&quot;!test:localhost&quot;</span>);
+
+        <span class="kw">let </span>(<span class="kw">_</span>, inbound) = alice.create_group_session_pair_with_defaults(room_id).<span class="kw">await</span>;
+
+        <span class="kw">let </span>worse = InboundGroupSession::from_export(<span class="kw-2">&amp;</span>inbound.export_at_index(<span class="number">10</span>).<span class="kw">await</span>).unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>copy = InboundGroupSession::from_pickle(inbound.pickle().<span class="kw">await</span>).unwrap();
+
+        <span class="macro">assert_eq!</span>(inbound.compare(<span class="kw-2">&amp;</span>worse).<span class="kw">await</span>, SessionOrdering::Better);
+        <span class="macro">assert_eq!</span>(worse.compare(<span class="kw-2">&amp;</span>inbound).<span class="kw">await</span>, SessionOrdering::Worse);
+        <span class="macro">assert_eq!</span>(inbound.compare(<span class="kw-2">&amp;</span>inbound).<span class="kw">await</span>, SessionOrdering::Equal);
+        <span class="macro">assert_eq!</span>(inbound.compare(<span class="kw-2">&amp;</span>copy).<span class="kw">await</span>, SessionOrdering::Equal);
+
+        copy.sender_key =
+            Curve25519PublicKey::from_base64(<span class="string">&quot;XbmrPa1kMwmdtNYng1B2gsfoo8UtF+NklzsTZiaVKyY&quot;</span>)
+                .unwrap();
+
+        <span class="macro">assert_eq!</span>(inbound.compare(<span class="kw-2">&amp;</span>copy).<span class="kw">await</span>, SessionOrdering::Unconnected);
+    }
+}
+</code></pre></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="matrix_sdk_crypto" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (09508489e 2022-11-04)" ></div></body></html>

@@ -1,0 +1,2586 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/matrix-sdk-base/src/client.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>client.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><div class="width-limiter"><nav class="sub"><a class="sub-logo-container" href="../../matrix_sdk_base/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<span id="2">2</span>
+<span id="3">3</span>
+<span id="4">4</span>
+<span id="5">5</span>
+<span id="6">6</span>
+<span id="7">7</span>
+<span id="8">8</span>
+<span id="9">9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
+<span id="89">89</span>
+<span id="90">90</span>
+<span id="91">91</span>
+<span id="92">92</span>
+<span id="93">93</span>
+<span id="94">94</span>
+<span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
+<span id="546">546</span>
+<span id="547">547</span>
+<span id="548">548</span>
+<span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
+<span id="553">553</span>
+<span id="554">554</span>
+<span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
+<span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
+<span id="669">669</span>
+<span id="670">670</span>
+<span id="671">671</span>
+<span id="672">672</span>
+<span id="673">673</span>
+<span id="674">674</span>
+<span id="675">675</span>
+<span id="676">676</span>
+<span id="677">677</span>
+<span id="678">678</span>
+<span id="679">679</span>
+<span id="680">680</span>
+<span id="681">681</span>
+<span id="682">682</span>
+<span id="683">683</span>
+<span id="684">684</span>
+<span id="685">685</span>
+<span id="686">686</span>
+<span id="687">687</span>
+<span id="688">688</span>
+<span id="689">689</span>
+<span id="690">690</span>
+<span id="691">691</span>
+<span id="692">692</span>
+<span id="693">693</span>
+<span id="694">694</span>
+<span id="695">695</span>
+<span id="696">696</span>
+<span id="697">697</span>
+<span id="698">698</span>
+<span id="699">699</span>
+<span id="700">700</span>
+<span id="701">701</span>
+<span id="702">702</span>
+<span id="703">703</span>
+<span id="704">704</span>
+<span id="705">705</span>
+<span id="706">706</span>
+<span id="707">707</span>
+<span id="708">708</span>
+<span id="709">709</span>
+<span id="710">710</span>
+<span id="711">711</span>
+<span id="712">712</span>
+<span id="713">713</span>
+<span id="714">714</span>
+<span id="715">715</span>
+<span id="716">716</span>
+<span id="717">717</span>
+<span id="718">718</span>
+<span id="719">719</span>
+<span id="720">720</span>
+<span id="721">721</span>
+<span id="722">722</span>
+<span id="723">723</span>
+<span id="724">724</span>
+<span id="725">725</span>
+<span id="726">726</span>
+<span id="727">727</span>
+<span id="728">728</span>
+<span id="729">729</span>
+<span id="730">730</span>
+<span id="731">731</span>
+<span id="732">732</span>
+<span id="733">733</span>
+<span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
+<span id="737">737</span>
+<span id="738">738</span>
+<span id="739">739</span>
+<span id="740">740</span>
+<span id="741">741</span>
+<span id="742">742</span>
+<span id="743">743</span>
+<span id="744">744</span>
+<span id="745">745</span>
+<span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
+<span id="817">817</span>
+<span id="818">818</span>
+<span id="819">819</span>
+<span id="820">820</span>
+<span id="821">821</span>
+<span id="822">822</span>
+<span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
+<span id="836">836</span>
+<span id="837">837</span>
+<span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
+<span id="847">847</span>
+<span id="848">848</span>
+<span id="849">849</span>
+<span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
+<span id="853">853</span>
+<span id="854">854</span>
+<span id="855">855</span>
+<span id="856">856</span>
+<span id="857">857</span>
+<span id="858">858</span>
+<span id="859">859</span>
+<span id="860">860</span>
+<span id="861">861</span>
+<span id="862">862</span>
+<span id="863">863</span>
+<span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
+<span id="867">867</span>
+<span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
+<span id="872">872</span>
+<span id="873">873</span>
+<span id="874">874</span>
+<span id="875">875</span>
+<span id="876">876</span>
+<span id="877">877</span>
+<span id="878">878</span>
+<span id="879">879</span>
+<span id="880">880</span>
+<span id="881">881</span>
+<span id="882">882</span>
+<span id="883">883</span>
+<span id="884">884</span>
+<span id="885">885</span>
+<span id="886">886</span>
+<span id="887">887</span>
+<span id="888">888</span>
+<span id="889">889</span>
+<span id="890">890</span>
+<span id="891">891</span>
+<span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
+<span id="895">895</span>
+<span id="896">896</span>
+<span id="897">897</span>
+<span id="898">898</span>
+<span id="899">899</span>
+<span id="900">900</span>
+<span id="901">901</span>
+<span id="902">902</span>
+<span id="903">903</span>
+<span id="904">904</span>
+<span id="905">905</span>
+<span id="906">906</span>
+<span id="907">907</span>
+<span id="908">908</span>
+<span id="909">909</span>
+<span id="910">910</span>
+<span id="911">911</span>
+<span id="912">912</span>
+<span id="913">913</span>
+<span id="914">914</span>
+<span id="915">915</span>
+<span id="916">916</span>
+<span id="917">917</span>
+<span id="918">918</span>
+<span id="919">919</span>
+<span id="920">920</span>
+<span id="921">921</span>
+<span id="922">922</span>
+<span id="923">923</span>
+<span id="924">924</span>
+<span id="925">925</span>
+<span id="926">926</span>
+<span id="927">927</span>
+<span id="928">928</span>
+<span id="929">929</span>
+<span id="930">930</span>
+<span id="931">931</span>
+<span id="932">932</span>
+<span id="933">933</span>
+<span id="934">934</span>
+<span id="935">935</span>
+<span id="936">936</span>
+<span id="937">937</span>
+<span id="938">938</span>
+<span id="939">939</span>
+<span id="940">940</span>
+<span id="941">941</span>
+<span id="942">942</span>
+<span id="943">943</span>
+<span id="944">944</span>
+<span id="945">945</span>
+<span id="946">946</span>
+<span id="947">947</span>
+<span id="948">948</span>
+<span id="949">949</span>
+<span id="950">950</span>
+<span id="951">951</span>
+<span id="952">952</span>
+<span id="953">953</span>
+<span id="954">954</span>
+<span id="955">955</span>
+<span id="956">956</span>
+<span id="957">957</span>
+<span id="958">958</span>
+<span id="959">959</span>
+<span id="960">960</span>
+<span id="961">961</span>
+<span id="962">962</span>
+<span id="963">963</span>
+<span id="964">964</span>
+<span id="965">965</span>
+<span id="966">966</span>
+<span id="967">967</span>
+<span id="968">968</span>
+<span id="969">969</span>
+<span id="970">970</span>
+<span id="971">971</span>
+<span id="972">972</span>
+<span id="973">973</span>
+<span id="974">974</span>
+<span id="975">975</span>
+<span id="976">976</span>
+<span id="977">977</span>
+<span id="978">978</span>
+<span id="979">979</span>
+<span id="980">980</span>
+<span id="981">981</span>
+<span id="982">982</span>
+<span id="983">983</span>
+<span id="984">984</span>
+<span id="985">985</span>
+<span id="986">986</span>
+<span id="987">987</span>
+<span id="988">988</span>
+<span id="989">989</span>
+<span id="990">990</span>
+<span id="991">991</span>
+<span id="992">992</span>
+<span id="993">993</span>
+<span id="994">994</span>
+<span id="995">995</span>
+<span id="996">996</span>
+<span id="997">997</span>
+<span id="998">998</span>
+<span id="999">999</span>
+<span id="1000">1000</span>
+<span id="1001">1001</span>
+<span id="1002">1002</span>
+<span id="1003">1003</span>
+<span id="1004">1004</span>
+<span id="1005">1005</span>
+<span id="1006">1006</span>
+<span id="1007">1007</span>
+<span id="1008">1008</span>
+<span id="1009">1009</span>
+<span id="1010">1010</span>
+<span id="1011">1011</span>
+<span id="1012">1012</span>
+<span id="1013">1013</span>
+<span id="1014">1014</span>
+<span id="1015">1015</span>
+<span id="1016">1016</span>
+<span id="1017">1017</span>
+<span id="1018">1018</span>
+<span id="1019">1019</span>
+<span id="1020">1020</span>
+<span id="1021">1021</span>
+<span id="1022">1022</span>
+<span id="1023">1023</span>
+<span id="1024">1024</span>
+<span id="1025">1025</span>
+<span id="1026">1026</span>
+<span id="1027">1027</span>
+<span id="1028">1028</span>
+<span id="1029">1029</span>
+<span id="1030">1030</span>
+<span id="1031">1031</span>
+<span id="1032">1032</span>
+<span id="1033">1033</span>
+<span id="1034">1034</span>
+<span id="1035">1035</span>
+<span id="1036">1036</span>
+<span id="1037">1037</span>
+<span id="1038">1038</span>
+<span id="1039">1039</span>
+<span id="1040">1040</span>
+<span id="1041">1041</span>
+<span id="1042">1042</span>
+<span id="1043">1043</span>
+<span id="1044">1044</span>
+<span id="1045">1045</span>
+<span id="1046">1046</span>
+<span id="1047">1047</span>
+<span id="1048">1048</span>
+<span id="1049">1049</span>
+<span id="1050">1050</span>
+<span id="1051">1051</span>
+<span id="1052">1052</span>
+<span id="1053">1053</span>
+<span id="1054">1054</span>
+<span id="1055">1055</span>
+<span id="1056">1056</span>
+<span id="1057">1057</span>
+<span id="1058">1058</span>
+<span id="1059">1059</span>
+<span id="1060">1060</span>
+<span id="1061">1061</span>
+<span id="1062">1062</span>
+<span id="1063">1063</span>
+<span id="1064">1064</span>
+<span id="1065">1065</span>
+<span id="1066">1066</span>
+<span id="1067">1067</span>
+<span id="1068">1068</span>
+<span id="1069">1069</span>
+<span id="1070">1070</span>
+<span id="1071">1071</span>
+<span id="1072">1072</span>
+<span id="1073">1073</span>
+<span id="1074">1074</span>
+<span id="1075">1075</span>
+<span id="1076">1076</span>
+<span id="1077">1077</span>
+<span id="1078">1078</span>
+<span id="1079">1079</span>
+<span id="1080">1080</span>
+<span id="1081">1081</span>
+<span id="1082">1082</span>
+<span id="1083">1083</span>
+<span id="1084">1084</span>
+<span id="1085">1085</span>
+<span id="1086">1086</span>
+<span id="1087">1087</span>
+<span id="1088">1088</span>
+<span id="1089">1089</span>
+<span id="1090">1090</span>
+<span id="1091">1091</span>
+<span id="1092">1092</span>
+<span id="1093">1093</span>
+<span id="1094">1094</span>
+<span id="1095">1095</span>
+<span id="1096">1096</span>
+<span id="1097">1097</span>
+<span id="1098">1098</span>
+<span id="1099">1099</span>
+<span id="1100">1100</span>
+<span id="1101">1101</span>
+<span id="1102">1102</span>
+<span id="1103">1103</span>
+<span id="1104">1104</span>
+<span id="1105">1105</span>
+<span id="1106">1106</span>
+<span id="1107">1107</span>
+<span id="1108">1108</span>
+<span id="1109">1109</span>
+<span id="1110">1110</span>
+<span id="1111">1111</span>
+<span id="1112">1112</span>
+<span id="1113">1113</span>
+<span id="1114">1114</span>
+<span id="1115">1115</span>
+<span id="1116">1116</span>
+<span id="1117">1117</span>
+<span id="1118">1118</span>
+<span id="1119">1119</span>
+<span id="1120">1120</span>
+<span id="1121">1121</span>
+<span id="1122">1122</span>
+<span id="1123">1123</span>
+<span id="1124">1124</span>
+<span id="1125">1125</span>
+<span id="1126">1126</span>
+<span id="1127">1127</span>
+<span id="1128">1128</span>
+<span id="1129">1129</span>
+<span id="1130">1130</span>
+<span id="1131">1131</span>
+<span id="1132">1132</span>
+<span id="1133">1133</span>
+<span id="1134">1134</span>
+<span id="1135">1135</span>
+<span id="1136">1136</span>
+<span id="1137">1137</span>
+<span id="1138">1138</span>
+<span id="1139">1139</span>
+<span id="1140">1140</span>
+<span id="1141">1141</span>
+<span id="1142">1142</span>
+<span id="1143">1143</span>
+<span id="1144">1144</span>
+<span id="1145">1145</span>
+<span id="1146">1146</span>
+<span id="1147">1147</span>
+<span id="1148">1148</span>
+<span id="1149">1149</span>
+<span id="1150">1150</span>
+<span id="1151">1151</span>
+<span id="1152">1152</span>
+<span id="1153">1153</span>
+<span id="1154">1154</span>
+<span id="1155">1155</span>
+<span id="1156">1156</span>
+<span id="1157">1157</span>
+<span id="1158">1158</span>
+<span id="1159">1159</span>
+<span id="1160">1160</span>
+<span id="1161">1161</span>
+<span id="1162">1162</span>
+<span id="1163">1163</span>
+<span id="1164">1164</span>
+<span id="1165">1165</span>
+<span id="1166">1166</span>
+<span id="1167">1167</span>
+<span id="1168">1168</span>
+<span id="1169">1169</span>
+<span id="1170">1170</span>
+<span id="1171">1171</span>
+<span id="1172">1172</span>
+<span id="1173">1173</span>
+<span id="1174">1174</span>
+<span id="1175">1175</span>
+<span id="1176">1176</span>
+<span id="1177">1177</span>
+<span id="1178">1178</span>
+<span id="1179">1179</span>
+<span id="1180">1180</span>
+<span id="1181">1181</span>
+<span id="1182">1182</span>
+<span id="1183">1183</span>
+<span id="1184">1184</span>
+<span id="1185">1185</span>
+<span id="1186">1186</span>
+<span id="1187">1187</span>
+<span id="1188">1188</span>
+<span id="1189">1189</span>
+<span id="1190">1190</span>
+<span id="1191">1191</span>
+<span id="1192">1192</span>
+<span id="1193">1193</span>
+<span id="1194">1194</span>
+<span id="1195">1195</span>
+<span id="1196">1196</span>
+<span id="1197">1197</span>
+<span id="1198">1198</span>
+<span id="1199">1199</span>
+<span id="1200">1200</span>
+<span id="1201">1201</span>
+<span id="1202">1202</span>
+<span id="1203">1203</span>
+<span id="1204">1204</span>
+<span id="1205">1205</span>
+<span id="1206">1206</span>
+<span id="1207">1207</span>
+<span id="1208">1208</span>
+<span id="1209">1209</span>
+<span id="1210">1210</span>
+<span id="1211">1211</span>
+<span id="1212">1212</span>
+<span id="1213">1213</span>
+<span id="1214">1214</span>
+<span id="1215">1215</span>
+<span id="1216">1216</span>
+<span id="1217">1217</span>
+<span id="1218">1218</span>
+<span id="1219">1219</span>
+<span id="1220">1220</span>
+<span id="1221">1221</span>
+<span id="1222">1222</span>
+<span id="1223">1223</span>
+<span id="1224">1224</span>
+<span id="1225">1225</span>
+<span id="1226">1226</span>
+<span id="1227">1227</span>
+<span id="1228">1228</span>
+<span id="1229">1229</span>
+<span id="1230">1230</span>
+<span id="1231">1231</span>
+<span id="1232">1232</span>
+<span id="1233">1233</span>
+<span id="1234">1234</span>
+<span id="1235">1235</span>
+<span id="1236">1236</span>
+<span id="1237">1237</span>
+<span id="1238">1238</span>
+<span id="1239">1239</span>
+<span id="1240">1240</span>
+<span id="1241">1241</span>
+<span id="1242">1242</span>
+<span id="1243">1243</span>
+<span id="1244">1244</span>
+<span id="1245">1245</span>
+<span id="1246">1246</span>
+<span id="1247">1247</span>
+<span id="1248">1248</span>
+<span id="1249">1249</span>
+<span id="1250">1250</span>
+<span id="1251">1251</span>
+<span id="1252">1252</span>
+<span id="1253">1253</span>
+<span id="1254">1254</span>
+<span id="1255">1255</span>
+<span id="1256">1256</span>
+<span id="1257">1257</span>
+<span id="1258">1258</span>
+<span id="1259">1259</span>
+<span id="1260">1260</span>
+<span id="1261">1261</span>
+<span id="1262">1262</span>
+<span id="1263">1263</span>
+<span id="1264">1264</span>
+<span id="1265">1265</span>
+<span id="1266">1266</span>
+<span id="1267">1267</span>
+<span id="1268">1268</span>
+<span id="1269">1269</span>
+<span id="1270">1270</span>
+<span id="1271">1271</span>
+<span id="1272">1272</span>
+<span id="1273">1273</span>
+<span id="1274">1274</span>
+<span id="1275">1275</span>
+<span id="1276">1276</span>
+<span id="1277">1277</span>
+<span id="1278">1278</span>
+<span id="1279">1279</span>
+<span id="1280">1280</span>
+<span id="1281">1281</span>
+<span id="1282">1282</span>
+<span id="1283">1283</span>
+<span id="1284">1284</span>
+<span id="1285">1285</span>
+<span id="1286">1286</span>
+<span id="1287">1287</span>
+<span id="1288">1288</span>
+<span id="1289">1289</span>
+<span id="1290">1290</span>
+<span id="1291">1291</span>
+<span id="1292">1292</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright 2020 Damir Jelić
+// Copyright 2020 The Matrix.org Foundation C.I.C.
+//
+// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+</span><span class="kw">use </span>std::{
+    borrow::Borrow,
+    collections::{BTreeMap, BTreeSet},
+    fmt,
+};
+<span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+</span><span class="kw">use </span>std::{ops::Deref, sync::Arc};
+
+<span class="kw">use </span>futures_signals::signal::ReadOnlyMutable;
+<span class="kw">use </span>matrix_sdk_common::{
+    deserialized_responses::{
+        AmbiguityChanges, JoinedRoom, LeftRoom, MembersResponse, Rooms, SyncResponse,
+        SyncTimelineEvent, Timeline,
+    },
+    instant::Instant,
+};
+<span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+</span><span class="kw">use </span>matrix_sdk_crypto::{
+    store::{CryptoStore, MemoryStore <span class="kw">as </span>MemoryCryptoStore},
+    EncryptionSettings, OlmError, OlmMachine, ToDeviceRequest,
+};
+<span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+</span><span class="kw">use </span>once_cell::sync::OnceCell;
+<span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+</span><span class="kw">use </span>ruma::events::{
+    room::{history_visibility::HistoryVisibility, redaction::SyncRoomRedactionEvent},
+    AnySyncMessageLikeEvent, SyncMessageLikeEvent,
+};
+<span class="kw">use </span>ruma::{
+    api::client::{<span class="self">self </span><span class="kw">as </span>api, push::get_notifications::v3::Notification},
+    events::{
+        push_rules::{PushRulesEvent, PushRulesEventContent},
+        room::{
+            member::{MembershipState, SyncRoomMemberEvent},
+            power_levels::{RoomPowerLevelsEvent, RoomPowerLevelsEventContent},
+        },
+        AnyGlobalAccountDataEvent, AnyRoomAccountDataEvent, AnyStrippedStateEvent,
+        AnySyncEphemeralRoomEvent, AnySyncStateEvent, AnySyncTimelineEvent,
+        GlobalAccountDataEventType, StateEventType,
+    },
+    push::{Action, PushConditionRoomCtx, Ruleset},
+    serde::Raw,
+    MilliSecondsSinceUnixEpoch, OwnedUserId, RoomId, UInt, UserId,
+};
+<span class="kw">use </span>tracing::{debug, info, trace, warn};
+
+<span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+</span><span class="kw">use </span><span class="kw">crate</span>::error::Error;
+<span class="kw">use crate</span>::{
+    error::Result,
+    rooms::{Room, RoomInfo, RoomType},
+    store::{
+        ambiguity_map::AmbiguityCache, <span class="prelude-ty">Result </span><span class="kw">as </span>StoreResult, StateChanges, StateStoreExt, Store,
+        StoreConfig,
+    },
+    Session, SessionMeta, SessionTokens, StateStore,
+};
+
+<span class="doccomment">/// A no IO Client implementation.
+///
+/// This Client is a state machine that receives responses and events and
+/// accordingly updates its state.
+</span><span class="attr">#[derive(Clone)]
+</span><span class="kw">pub struct </span>BaseClient {
+    <span class="doccomment">/// Database
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) store: Store,
+    <span class="doccomment">/// The store used for encryption
+    </span><span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span>crypto_store: Arc&lt;<span class="kw">dyn </span>CryptoStore&gt;,
+    <span class="doccomment">/// The olm-machine that is created once the
+    /// [`Session`][crate::session::Session] is set via
+    /// [`BaseClient::restore_session`]
+    </span><span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span>olm_machine: OnceCell&lt;OlmMachine&gt;,
+}
+
+<span class="attr">#[cfg(not(tarpaulin_include))]
+</span><span class="kw">impl </span>fmt::Debug <span class="kw">for </span>BaseClient {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+        f.debug_struct(<span class="string">&quot;Client&quot;</span>)
+            .field(<span class="string">&quot;session_meta&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.store.session_meta())
+            .field(<span class="string">&quot;sync_token&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.store.sync_token)
+            .finish_non_exhaustive()
+    }
+}
+
+<span class="kw">impl </span>BaseClient {
+    <span class="doccomment">/// Create a new default client.
+    </span><span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
+        BaseClient::with_store_config(StoreConfig::default())
+    }
+
+    <span class="doccomment">/// Create a new client.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - An optional session if the user already has one from a
+    /// previous login call.
+    </span><span class="kw">pub fn </span>with_store_config(config: StoreConfig) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>store = config.state_store.map(Store::new).unwrap_or_else(Store::open_memory_store);
+        <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+        </span><span class="kw">let </span>crypto_store =
+            config.crypto_store.unwrap_or_else(|| Arc::new(MemoryCryptoStore::default()));
+
+        BaseClient {
+            store,
+            <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+            </span>crypto_store,
+            <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+            </span>olm_machine: Default::default(),
+        }
+    }
+
+    <span class="doccomment">/// Get the session meta information.
+    ///
+    /// If the client is currently logged in, this will return a
+    /// [`SessionMeta`] object which contains the user ID and device ID.
+    /// Otherwise it returns `None`.
+    </span><span class="kw">pub fn </span>session_meta(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>SessionMeta&gt; {
+        <span class="self">self</span>.store.session_meta()
+    }
+
+    <span class="doccomment">/// Get the session tokens.
+    ///
+    /// If the client is currently logged in, this will return a
+    /// [`SessionTokens`] object which contains the access token and optional
+    /// refresh token. Otherwise it returns `None`.
+    </span><span class="kw">pub fn </span>session_tokens(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ReadOnlyMutable&lt;<span class="prelude-ty">Option</span>&lt;SessionTokens&gt;&gt; {
+        <span class="self">self</span>.store.session_tokens()
+    }
+
+    <span class="doccomment">/// Set the session tokens.
+    </span><span class="kw">pub fn </span>set_session_tokens(<span class="kw-2">&amp;</span><span class="self">self</span>, tokens: SessionTokens) {
+        <span class="self">self</span>.store.set_session_tokens(tokens)
+    }
+
+    <span class="doccomment">/// Get the user login session.
+    ///
+    /// If the client is currently logged in, this will return a
+    /// [`Session`][crate::session::Session] object which can later be given to
+    /// [`BaseClient::restore_session`].
+    ///
+    /// Returns a session object if the client is logged in. Otherwise returns
+    /// `None`.
+    </span><span class="kw">pub fn </span>session(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Session&gt; {
+        <span class="self">self</span>.store.session()
+    }
+
+    <span class="doccomment">/// Get all the rooms this client knows about.
+    </span><span class="kw">pub fn </span>get_rooms(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Room&gt; {
+        <span class="self">self</span>.store.get_rooms()
+    }
+
+    <span class="doccomment">/// Get all the rooms this client knows about.
+    </span><span class="kw">pub fn </span>get_stripped_rooms(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Room&gt; {
+        <span class="self">self</span>.store.get_stripped_rooms()
+    }
+
+    <span class="doccomment">/// Get a reference to the store.
+    </span><span class="attr">#[allow(unknown_lints, clippy::explicit_auto_deref)]
+    </span><span class="kw">pub fn </span>store(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>StateStore {
+        <span class="kw-2">&amp;*</span><span class="self">self</span>.store
+    }
+
+    <span class="doccomment">/// Is the client logged in.
+    </span><span class="kw">pub fn </span>logged_in(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.store.session_meta().is_some()
+    }
+
+    <span class="doccomment">/// Receive a login response and update the session of the client.
+    ///
+    /// # Arguments
+    ///
+    /// * `response` - A successful login response that contains our access
+    ///   token and device ID.
+    </span><span class="kw">pub async fn </span>receive_login_response(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        response: <span class="kw-2">&amp;</span>api::session::login::v3::Response,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>session = Session {
+            access_token: response.access_token.clone(),
+            refresh_token: response.refresh_token.clone(),
+            device_id: response.device_id.clone(),
+            user_id: response.user_id.clone(),
+        };
+        <span class="self">self</span>.restore_session(session).<span class="kw">await
+    </span>}
+
+    <span class="doccomment">/// Restore a previously logged in session.
+    ///
+    /// # Arguments
+    ///
+    /// * `session` - An session that the user already has from a previous login
+    ///   call.
+    </span><span class="kw">pub async fn </span>restore_session(<span class="kw-2">&amp;</span><span class="self">self</span>, session: Session) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="macro">debug!</span>(user_id = %session.user_id, device_id = %session.device_id, <span class="string">&quot;Restoring login&quot;</span>);
+        <span class="self">self</span>.store.restore_session(session.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+        </span>{
+            <span class="kw">let </span>olm_machine = OlmMachine::with_store(
+                <span class="kw-2">&amp;</span>session.user_id,
+                <span class="kw-2">&amp;</span>session.device_id,
+                <span class="self">self</span>.crypto_store.clone(),
+            )
+            .<span class="kw">await
+            </span>.map_err(OlmError::from)<span class="question-mark">?</span>;
+
+            <span class="kw">if </span><span class="self">self</span>.olm_machine.set(olm_machine).is_err() {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::BadCryptoStoreState);
+            }
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="doccomment">/// Get the current, if any, sync token of the client.
+    /// This will be None if the client didn&#39;t sync at least once.
+    </span><span class="kw">pub async fn </span>sync_token(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+        <span class="self">self</span>.store.sync_token.read().<span class="kw">await</span>.clone()
+    }
+
+    <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span><span class="kw">async fn </span>handle_unencrypted_verification_event(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        event: <span class="kw-2">&amp;</span>AnySyncMessageLikeEvent,
+        room_id: <span class="kw-2">&amp;</span>RoomId,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(olm) = <span class="self">self</span>.olm_machine() {
+            olm.receive_unencrypted_verification_event(
+                <span class="kw-2">&amp;</span>event.clone().into_full_event(room_id.to_owned()),
+            )
+            .<span class="kw">await</span><span class="question-mark">?</span>;
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="attr">#[allow(clippy::too_many_arguments)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>handle_timeline(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        room: <span class="kw-2">&amp;</span>Room,
+        limited: bool,
+        events: Vec&lt;Raw&lt;AnySyncTimelineEvent&gt;&gt;,
+        prev_batch: <span class="prelude-ty">Option</span>&lt;String&gt;,
+        push_rules: <span class="kw-2">&amp;</span>Ruleset,
+        user_ids: <span class="kw-2">&amp;mut </span>BTreeSet&lt;OwnedUserId&gt;,
+        room_info: <span class="kw-2">&amp;mut </span>RoomInfo,
+        changes: <span class="kw-2">&amp;mut </span>StateChanges,
+        ambiguity_cache: <span class="kw-2">&amp;mut </span>AmbiguityCache,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Timeline&gt; {
+        <span class="kw">let </span>room_id = room.room_id();
+        <span class="kw">let </span>user_id = room.own_user_id();
+        <span class="kw">let </span><span class="kw-2">mut </span>timeline = Timeline::new(limited, prev_batch);
+        <span class="kw">let </span><span class="kw-2">mut </span>push_context = <span class="self">self</span>.get_push_room_context(room, room_info, changes).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="kw">for </span>event <span class="kw">in </span>events {
+            <span class="attr">#[allow(unused_mut)]
+            </span><span class="kw">let </span><span class="kw-2">mut </span>event: SyncTimelineEvent = event.into();
+
+            <span class="kw">match </span>event.event.deserialize() {
+                <span class="prelude-val">Ok</span>(e) =&gt; {
+                    <span class="attr">#[allow(clippy::single_match)]
+                    </span><span class="kw">match </span><span class="kw-2">&amp;</span>e {
+                        AnySyncTimelineEvent::State(s) =&gt; <span class="kw">match </span>s {
+                            AnySyncStateEvent::RoomMember(member) =&gt; {
+                                ambiguity_cache.handle_event(changes, room_id, member).<span class="kw">await</span><span class="question-mark">?</span>;
+
+                                <span class="kw">match </span>member.membership() {
+                                    MembershipState::Join | MembershipState::Invite =&gt; {
+                                        user_ids.insert(member.state_key().to_owned());
+                                    }
+                                    <span class="kw">_ </span>=&gt; {
+                                        user_ids.remove(member.state_key());
+                                    }
+                                }
+
+                                <span class="comment">// Senders can fake the profile easily so we keep track
+                                // of profiles that the member set themselves to avoid
+                                // having confusing profile changes when a member gets
+                                // kicked/banned.
+                                </span><span class="kw">if </span>member.state_key() == member.sender() {
+                                    changes
+                                        .profiles
+                                        .entry(room_id.to_owned())
+                                        .or_default()
+                                        .insert(member.sender().to_owned(), member.into());
+                                }
+
+                                changes
+                                    .members
+                                    .entry(room_id.to_owned())
+                                    .or_default()
+                                    .insert(member.state_key().to_owned(), member.clone());
+                            }
+                            <span class="kw">_ </span>=&gt; {
+                                room_info.handle_state_event(s);
+                                <span class="kw">let </span>raw_event: Raw&lt;AnySyncStateEvent&gt; = event.event.clone().cast();
+                                changes.add_state_event(room_id, s.clone(), raw_event);
+                            }
+                        },
+
+                        <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+                        </span>AnySyncTimelineEvent::MessageLike(
+                            AnySyncMessageLikeEvent::RoomRedaction(
+                                <span class="comment">// Redacted redactions don&#39;t have the `redacts` key, so we can&#39;t
+                                // know what they were meant to redact. A future room version might
+                                // move the redacts key, replace the current redaction event
+                                // altogether, or have the redacts key survive redaction.
+                                </span>SyncRoomRedactionEvent::Original(r),
+                            ),
+                        ) =&gt; {
+                            room_info.handle_redaction(r);
+                            changes.add_redaction(room_id, r.clone());
+                        }
+
+                        <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+                        </span>AnySyncTimelineEvent::MessageLike(e) =&gt; <span class="kw">match </span>e {
+                            AnySyncMessageLikeEvent::RoomEncrypted(
+                                SyncMessageLikeEvent::Original(<span class="kw">_</span>),
+                            ) =&gt; {
+                                <span class="kw">if let </span><span class="prelude-val">Some</span>(olm) = <span class="self">self</span>.olm_machine() {
+                                    <span class="kw">if let </span><span class="prelude-val">Ok</span>(decrypted) = olm
+                                        .decrypt_room_event(event.event.cast_ref(), room_id)
+                                        .<span class="kw">await
+                                    </span>{
+                                        event = decrypted.into();
+                                    }
+                                }
+                            }
+                            AnySyncMessageLikeEvent::RoomMessage(
+                                SyncMessageLikeEvent::Original(original_event),
+                            ) =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span>original_event.content.msgtype {
+                                ruma::events::room::message::MessageType::VerificationRequest(
+                                    <span class="kw">_</span>,
+                                ) =&gt; {
+                                    <span class="self">self</span>.handle_unencrypted_verification_event(e, room_id).<span class="kw">await</span><span class="question-mark">?</span>;
+                                }
+                                <span class="kw">_ </span>=&gt; (),
+                            },
+                            <span class="kw">_ if </span>e.event_type().to_string().starts_with(<span class="string">&quot;m.key.verification&quot;</span>) =&gt; {
+                                <span class="self">self</span>.handle_unencrypted_verification_event(e, room_id).<span class="kw">await</span><span class="question-mark">?</span>;
+                            }
+                            <span class="kw">_ </span>=&gt; (),
+                        },
+
+                        <span class="attr">#[cfg(not(feature = <span class="string">&quot;e2e-encryption&quot;</span>))]
+                        </span><span class="kw">_ </span>=&gt; (),
+                    }
+
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(context) = <span class="kw-2">&amp;mut </span>push_context {
+                        <span class="self">self</span>.update_push_room_context(context, user_id, room_info, changes).<span class="kw">await</span>;
+                    } <span class="kw">else </span>{
+                        push_context = <span class="self">self</span>.get_push_room_context(room, room_info, changes).<span class="kw">await</span><span class="question-mark">?</span>;
+                    }
+
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(context) = <span class="kw-2">&amp;</span>push_context {
+                        <span class="kw">let </span>actions = push_rules.get_actions(<span class="kw-2">&amp;</span>event.event, context);
+
+                        <span class="kw">if </span>actions.iter().any(|a| <span class="macro">matches!</span>(a, Action::Notify)) {
+                            changes.add_notification(
+                                room_id,
+                                Notification::new(
+                                    actions.to_owned(),
+                                    event.event.clone(),
+                                    <span class="bool-val">false</span>,
+                                    room_id.to_owned(),
+                                    MilliSecondsSinceUnixEpoch::now(),
+                                ),
+                            );
+                        }
+                        <span class="comment">// TODO if there is an
+                        // Action::SetTweak(Tweak::Highlight) we need to store
+                        // its value with the event so a client can show if the
+                        // event is highlighted
+                        // in the UI.
+                        // Requires the possibility to associate custom data
+                        // with events and to
+                        // store them.
+                    </span>}
+                }
+                <span class="prelude-val">Err</span>(e) =&gt; {
+                    <span class="macro">warn!</span>(<span class="string">&quot;Error deserializing event {:?}&quot;</span>, e);
+                }
+            }
+
+            timeline.events.push(event);
+        }
+
+        <span class="prelude-val">Ok</span>(timeline)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>handle_invited_state(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        events: <span class="kw-2">&amp;</span>[Raw&lt;AnyStrippedStateEvent&gt;],
+        room_info: <span class="kw-2">&amp;mut </span>RoomInfo,
+        changes: <span class="kw-2">&amp;mut </span>StateChanges,
+    ) {
+        <span class="kw">let </span><span class="kw-2">mut </span>members = BTreeMap::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>state_events = BTreeMap::new();
+
+        <span class="kw">for </span>raw_event <span class="kw">in </span>events {
+            <span class="kw">match </span>raw_event.deserialize() {
+                <span class="prelude-val">Ok</span>(AnyStrippedStateEvent::RoomMember(member)) =&gt; {
+                    members.insert(member.state_key.clone(), member);
+                }
+                <span class="prelude-val">Ok</span>(e) =&gt; {
+                    room_info.handle_stripped_state_event(<span class="kw-2">&amp;</span>e);
+                    state_events
+                        .entry(e.event_type())
+                        .or_insert_with(BTreeMap::new)
+                        .insert(e.state_key().to_owned(), raw_event.clone());
+                }
+                <span class="prelude-val">Err</span>(err) =&gt; {
+                    <span class="macro">warn!</span>(
+                        room_id = %room_info.room_id,
+                        <span class="string">&quot;Couldn&#39;t deserialize stripped state event: {err:?}&quot;</span>,
+                    );
+                }
+            }
+        }
+
+        changes.stripped_members.insert(room_info.room_id().to_owned(), members);
+        changes.stripped_state.insert(room_info.room_id().to_owned(), state_events);
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>handle_state(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        events: <span class="kw-2">&amp;</span>[Raw&lt;AnySyncStateEvent&gt;],
+        room_info: <span class="kw-2">&amp;mut </span>RoomInfo,
+        changes: <span class="kw-2">&amp;mut </span>StateChanges,
+        ambiguity_cache: <span class="kw-2">&amp;mut </span>AmbiguityCache,
+    ) -&gt; StoreResult&lt;BTreeSet&lt;OwnedUserId&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>members = BTreeMap::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>state_events = BTreeMap::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>user_ids = BTreeSet::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>profiles = BTreeMap::new();
+
+        <span class="kw">let </span>room_id = room_info.room_id.clone();
+
+        <span class="kw">for </span>raw_event <span class="kw">in </span>events {
+            <span class="kw">let </span>event = <span class="kw">match </span>raw_event.deserialize() {
+                <span class="prelude-val">Ok</span>(e) =&gt; e,
+                <span class="prelude-val">Err</span>(e) =&gt; {
+                    <span class="macro">warn!</span>(%room_id, <span class="string">&quot;Couldn&#39;t deserialize state event: {e:?}&quot;</span>);
+                    <span class="kw">continue</span>;
+                }
+            };
+
+            room_info.handle_state_event(<span class="kw-2">&amp;</span>event);
+
+            <span class="kw">if let </span>AnySyncStateEvent::RoomMember(member) = event {
+                ambiguity_cache.handle_event(changes, <span class="kw-2">&amp;</span>room_id, <span class="kw-2">&amp;</span>member).<span class="kw">await</span><span class="question-mark">?</span>;
+
+                <span class="kw">match </span>member.membership() {
+                    MembershipState::Join | MembershipState::Invite =&gt; {
+                        user_ids.insert(member.state_key().to_owned());
+                    }
+                    <span class="kw">_ </span>=&gt; (),
+                }
+
+                <span class="comment">// Senders can fake the profile easily so we keep track
+                // of profiles that the member set themselves to avoid
+                // having confusing profile changes when a member gets
+                // kicked/banned.
+                </span><span class="kw">if </span>member.state_key() == member.sender() {
+                    profiles.insert(member.sender().to_owned(), member.borrow().into());
+                }
+
+                members.insert(member.state_key().to_owned(), member);
+            } <span class="kw">else </span>{
+                state_events
+                    .entry(event.event_type())
+                    .or_insert_with(BTreeMap::new)
+                    .insert(event.state_key().to_owned(), raw_event.clone());
+            }
+        }
+
+        changes.members.insert((<span class="kw-2">*</span>room_id).to_owned(), members);
+        changes.profiles.insert((<span class="kw-2">*</span>room_id).to_owned(), profiles);
+        changes.state.insert((<span class="kw-2">*</span>room_id).to_owned(), state_events);
+
+        <span class="prelude-val">Ok</span>(user_ids)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>handle_room_account_data(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        room_id: <span class="kw-2">&amp;</span>RoomId,
+        events: <span class="kw-2">&amp;</span>[Raw&lt;AnyRoomAccountDataEvent&gt;],
+        changes: <span class="kw-2">&amp;mut </span>StateChanges,
+    ) {
+        <span class="kw">for </span>raw_event <span class="kw">in </span>events {
+            <span class="kw">if let </span><span class="prelude-val">Ok</span>(event) = raw_event.deserialize() {
+                changes.add_room_account_data(room_id, event, raw_event.clone());
+            }
+        }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>handle_account_data(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        events: <span class="kw-2">&amp;</span>[Raw&lt;AnyGlobalAccountDataEvent&gt;],
+        changes: <span class="kw-2">&amp;mut </span>StateChanges,
+    ) {
+        <span class="kw">let </span><span class="kw-2">mut </span>account_data = BTreeMap::new();
+
+        <span class="kw">for </span>raw_event <span class="kw">in </span>events {
+            <span class="kw">let </span>event = <span class="kw">match </span>raw_event.deserialize() {
+                <span class="prelude-val">Ok</span>(e) =&gt; e,
+                <span class="prelude-val">Err</span>(e) =&gt; {
+                    <span class="macro">warn!</span>(error = <span class="question-mark">?</span>e, <span class="string">&quot;Failed to deserialize a global account data event&quot;</span>);
+                    <span class="kw">continue</span>;
+                }
+            };
+
+            <span class="kw">if let </span>AnyGlobalAccountDataEvent::Direct(e) = <span class="kw-2">&amp;</span>event {
+                <span class="kw">for </span>(user_id, rooms) <span class="kw">in </span>e.content.iter() {
+                    <span class="kw">for </span>room_id <span class="kw">in </span>rooms {
+                        <span class="macro">trace!</span>(
+                            room_id = room_id.as_str(),
+                            target = user_id.as_str(),
+                            <span class="string">&quot;Marking room as direct room&quot;
+                        </span>);
+
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(room) = changes.room_infos.get_mut(room_id) {
+                            room.base_info.dm_targets.insert(user_id.clone());
+                        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(room) = <span class="self">self</span>.store.get_room(room_id) {
+                            <span class="kw">let </span><span class="kw-2">mut </span>info = room.clone_info();
+                            <span class="kw">if </span>info.base_info.dm_targets.insert(user_id.clone()) {
+                                changes.add_room(info);
+                            }
+                        }
+                    }
+                }
+            }
+
+            account_data.insert(event.event_type(), raw_event.clone());
+        }
+
+        changes.account_data = account_data;
+    }
+
+    <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>preprocess_to_device_events(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        to_device_events: Vec&lt;Raw&lt;ruma::events::AnyToDeviceEvent&gt;&gt;,
+        changed_devices: <span class="kw-2">&amp;</span>api::sync::sync_events::DeviceLists,
+        one_time_keys_counts: <span class="kw-2">&amp;</span>BTreeMap&lt;ruma::DeviceKeyAlgorithm, UInt&gt;,
+        unused_fallback_keys: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>[ruma::DeviceKeyAlgorithm]&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Raw&lt;ruma::events::AnyToDeviceEvent&gt;&gt;&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(o) = <span class="self">self</span>.olm_machine() {
+            <span class="comment">// Let the crypto machine handle the sync response, this
+            // decrypts to-device events, but leaves room events alone.
+            // This makes sure that we have the decryption keys for the room
+            // events at hand.
+            </span><span class="prelude-val">Ok</span>(o.receive_sync_changes(
+                to_device_events,
+                changed_devices,
+                one_time_keys_counts,
+                unused_fallback_keys,
+            )
+            .<span class="kw">await</span><span class="question-mark">?</span>)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(to_device_events)
+        }
+    }
+
+    <span class="doccomment">/// Receive a response from a sync call.
+    ///
+    /// # Arguments
+    ///
+    /// * `response` - The response that we received after a successful sync.
+    </span><span class="kw">pub async fn </span>receive_sync_response(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        response: api::sync::sync_events::v3::Response,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;SyncResponse&gt; {
+        <span class="attr">#[allow(unused_variables)]
+        </span><span class="kw">let </span>api::sync::sync_events::v3::Response {
+            next_batch,
+            rooms,
+            presence,
+            account_data,
+            to_device,
+            device_lists,
+            device_one_time_keys_count,
+            device_unused_fallback_key_types,
+            ..
+        } = response;
+
+        <span class="comment">// The server might respond multiple times with the same sync token, in
+        // that case we already received this response and there&#39;s nothing to
+        // do.
+        </span><span class="kw">if </span><span class="self">self</span>.store.sync_token.read().<span class="kw">await</span>.as_ref() == <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>next_batch) {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(SyncResponse::new(next_batch));
+        }
+
+        <span class="kw">let </span>now = Instant::now();
+        <span class="kw">let </span>to_device_events = to_device.events;
+
+        <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+        </span><span class="kw">let </span>to_device_events = <span class="self">self
+            </span>.preprocess_to_device_events(
+                to_device_events,
+                <span class="kw-2">&amp;</span>device_lists,
+                <span class="kw-2">&amp;</span>device_one_time_keys_count,
+                device_unused_fallback_key_types.as_deref(),
+            )
+            .<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>changes = StateChanges::new(next_batch.clone());
+        <span class="kw">let </span><span class="kw-2">mut </span>ambiguity_cache = AmbiguityCache::new(<span class="self">self</span>.store.inner.clone());
+
+        <span class="self">self</span>.handle_account_data(<span class="kw-2">&amp;</span>account_data.events, <span class="kw-2">&amp;mut </span>changes).<span class="kw">await</span>;
+
+        <span class="kw">let </span>push_rules = <span class="self">self</span>.get_push_rules(<span class="kw-2">&amp;</span>changes).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>new_rooms = Rooms::default();
+
+        <span class="kw">for </span>(room_id, new_info) <span class="kw">in </span>rooms.join {
+            <span class="kw">let </span>room = <span class="self">self</span>.store.get_or_create_room(<span class="kw-2">&amp;</span>room_id, RoomType::Joined).<span class="kw">await</span>;
+            <span class="kw">let </span><span class="kw-2">mut </span>room_info = room.clone_info();
+            room_info.mark_as_joined();
+
+            room_info.update_summary(<span class="kw-2">&amp;</span>new_info.summary);
+            room_info.set_prev_batch(new_info.timeline.prev_batch.as_deref());
+
+            <span class="kw">let </span><span class="kw-2">mut </span>user_ids = <span class="self">self
+                </span>.handle_state(
+                    <span class="kw-2">&amp;</span>new_info.state.events,
+                    <span class="kw-2">&amp;mut </span>room_info,
+                    <span class="kw-2">&amp;mut </span>changes,
+                    <span class="kw-2">&amp;mut </span>ambiguity_cache,
+                )
+                .<span class="kw">await</span><span class="question-mark">?</span>;
+
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(event) =
+                new_info.ephemeral.events.iter().find_map(|e| <span class="kw">match </span>e.deserialize() {
+                    <span class="prelude-val">Ok</span>(AnySyncEphemeralRoomEvent::Receipt(event)) =&gt; <span class="prelude-val">Some</span>(event.content),
+                    <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+                })
+            {
+                changes.add_receipts(<span class="kw-2">&amp;</span>room_id, event);
+            }
+
+            <span class="kw">if </span>new_info.timeline.limited {
+                room_info.mark_members_missing();
+            }
+
+            <span class="kw">let </span>timeline = <span class="self">self
+                </span>.handle_timeline(
+                    <span class="kw-2">&amp;</span>room,
+                    new_info.timeline.limited,
+                    new_info.timeline.events,
+                    new_info.timeline.prev_batch,
+                    <span class="kw-2">&amp;</span>push_rules,
+                    <span class="kw-2">&amp;mut </span>user_ids,
+                    <span class="kw-2">&amp;mut </span>room_info,
+                    <span class="kw-2">&amp;mut </span>changes,
+                    <span class="kw-2">&amp;mut </span>ambiguity_cache,
+                )
+                .<span class="kw">await</span><span class="question-mark">?</span>;
+
+            <span class="self">self</span>.handle_room_account_data(<span class="kw-2">&amp;</span>room_id, <span class="kw-2">&amp;</span>new_info.account_data.events, <span class="kw-2">&amp;mut </span>changes)
+                .<span class="kw">await</span>;
+
+            <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+            </span><span class="kw">if </span>room_info.is_encrypted() {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(o) = <span class="self">self</span>.olm_machine() {
+                    <span class="kw">if </span>!room.is_encrypted() {
+                        <span class="comment">// The room turned on encryption in this sync, we need
+                        // to also get all the existing users and mark them for
+                        // tracking.
+                        </span><span class="kw">let </span>joined = <span class="self">self</span>.store.get_joined_user_ids(<span class="kw-2">&amp;</span>room_id).<span class="kw">await</span><span class="question-mark">?</span>;
+                        <span class="kw">let </span>invited = <span class="self">self</span>.store.get_invited_user_ids(<span class="kw-2">&amp;</span>room_id).<span class="kw">await</span><span class="question-mark">?</span>;
+
+                        <span class="kw">let </span>user_ids: Vec&lt;<span class="kw-2">&amp;</span>UserId&gt; =
+                            joined.iter().chain(<span class="kw-2">&amp;</span>invited).map(Deref::deref).collect();
+                        o.update_tracked_users(user_ids).<span class="kw">await
+                    </span>}
+
+                    o.update_tracked_users(user_ids.iter().map(Deref::deref)).<span class="kw">await</span>;
+                }
+            }
+
+            <span class="kw">let </span>notification_count = new_info.unread_notifications.into();
+            room_info.update_notification_count(notification_count);
+
+            new_rooms.join.insert(
+                room_id,
+                JoinedRoom::new(
+                    timeline,
+                    new_info.state,
+                    new_info.account_data.events,
+                    new_info.ephemeral,
+                    notification_count,
+                ),
+            );
+
+            changes.add_room(room_info);
+        }
+
+        <span class="kw">for </span>(room_id, new_info) <span class="kw">in </span>rooms.leave {
+            <span class="kw">let </span>room = <span class="self">self</span>.store.get_or_create_room(<span class="kw-2">&amp;</span>room_id, RoomType::Left).<span class="kw">await</span>;
+            <span class="kw">let </span><span class="kw-2">mut </span>room_info = room.clone_info();
+            room_info.mark_as_left();
+
+            <span class="kw">let </span><span class="kw-2">mut </span>user_ids = <span class="self">self
+                </span>.handle_state(
+                    <span class="kw-2">&amp;</span>new_info.state.events,
+                    <span class="kw-2">&amp;mut </span>room_info,
+                    <span class="kw-2">&amp;mut </span>changes,
+                    <span class="kw-2">&amp;mut </span>ambiguity_cache,
+                )
+                .<span class="kw">await</span><span class="question-mark">?</span>;
+
+            <span class="kw">let </span>timeline = <span class="self">self
+                </span>.handle_timeline(
+                    <span class="kw-2">&amp;</span>room,
+                    new_info.timeline.limited,
+                    new_info.timeline.events,
+                    new_info.timeline.prev_batch,
+                    <span class="kw-2">&amp;</span>push_rules,
+                    <span class="kw-2">&amp;mut </span>user_ids,
+                    <span class="kw-2">&amp;mut </span>room_info,
+                    <span class="kw-2">&amp;mut </span>changes,
+                    <span class="kw-2">&amp;mut </span>ambiguity_cache,
+                )
+                .<span class="kw">await</span><span class="question-mark">?</span>;
+
+            <span class="self">self</span>.handle_room_account_data(<span class="kw-2">&amp;</span>room_id, <span class="kw-2">&amp;</span>new_info.account_data.events, <span class="kw-2">&amp;mut </span>changes)
+                .<span class="kw">await</span>;
+
+            changes.add_room(room_info);
+            new_rooms
+                .leave
+                .insert(room_id, LeftRoom::new(timeline, new_info.state, new_info.account_data));
+        }
+
+        <span class="kw">for </span>(room_id, new_info) <span class="kw">in </span>rooms.invite {
+            <span class="kw">let </span>room = <span class="self">self</span>.store.get_or_create_stripped_room(<span class="kw-2">&amp;</span>room_id).<span class="kw">await</span>;
+            <span class="kw">let </span><span class="kw-2">mut </span>room_info = room.clone_info();
+
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(r) = <span class="self">self</span>.store.get_room(<span class="kw-2">&amp;</span>room_id) {
+                <span class="kw">let </span><span class="kw-2">mut </span>room_info = r.clone_info();
+                room_info.mark_as_invited();
+                changes.add_room(room_info);
+            }
+
+            <span class="self">self</span>.handle_invited_state(<span class="kw-2">&amp;</span>new_info.invite_state.events, <span class="kw-2">&amp;mut </span>room_info, <span class="kw-2">&amp;mut </span>changes);
+
+            changes.add_stripped_room(room_info);
+
+            new_rooms.invite.insert(room_id, new_info);
+        }
+
+        <span class="comment">// TODO remove this, we&#39;re processing account data events here again
+        // because we want to have the push rules in place before we process
+        // rooms and their events, but we want to create the rooms before we
+        // process the `m.direct` account data event.
+        </span><span class="self">self</span>.handle_account_data(<span class="kw-2">&amp;</span>account_data.events, <span class="kw-2">&amp;mut </span>changes).<span class="kw">await</span>;
+
+        changes.presence = presence
+            .events
+            .iter()
+            .filter_map(|e| {
+                <span class="kw">let </span>event = e.deserialize().ok()<span class="question-mark">?</span>;
+                <span class="prelude-val">Some</span>((event.sender, e.clone()))
+            })
+            .collect();
+
+        changes.ambiguity_maps = ambiguity_cache.cache;
+
+        <span class="self">self</span>.store.save_changes(<span class="kw-2">&amp;</span>changes).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw-2">*</span><span class="self">self</span>.store.sync_token.write().<span class="kw">await </span>= <span class="prelude-val">Some</span>(next_batch.clone());
+        <span class="self">self</span>.apply_changes(<span class="kw-2">&amp;</span>changes).<span class="kw">await</span>;
+
+        <span class="macro">info!</span>(<span class="string">&quot;Processed a sync response in {:?}&quot;</span>, now.elapsed());
+
+        <span class="kw">let </span>response = SyncResponse {
+            next_batch,
+            rooms: new_rooms,
+            presence,
+            account_data: account_data.events,
+            to_device_events,
+            device_lists,
+            device_one_time_keys_count: device_one_time_keys_count
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+            ambiguity_changes: AmbiguityChanges { changes: ambiguity_cache.changes },
+            notifications: changes.notifications,
+        };
+
+        <span class="prelude-val">Ok</span>(response)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>apply_changes(<span class="kw-2">&amp;</span><span class="self">self</span>, changes: <span class="kw-2">&amp;</span>StateChanges) {
+        <span class="kw">for </span>(room_id, room_info) <span class="kw">in </span><span class="kw-2">&amp;</span>changes.room_infos {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(room) = <span class="self">self</span>.store.get_room(room_id) {
+                room.update_summary(room_info.clone())
+            }
+        }
+
+        <span class="kw">for </span>(room_id, room_info) <span class="kw">in </span><span class="kw-2">&amp;</span>changes.stripped_room_infos {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(room) = <span class="self">self</span>.store.get_stripped_room(room_id) {
+                room.update_summary(room_info.clone())
+            }
+        }
+    }
+
+    <span class="doccomment">/// Receive a get member events response and convert it to a deserialized
+    /// `MembersResponse`
+    ///
+    ///
+    /// # Arguments
+    ///
+    /// * `room_id` - The room id this response belongs to.
+    ///
+    /// * `response` - The raw response that was received from the server.
+    </span><span class="kw">pub async fn </span>receive_members(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        room_id: <span class="kw-2">&amp;</span>RoomId,
+        response: <span class="kw-2">&amp;</span>api::membership::get_member_events::v3::Response,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;MembersResponse&gt; {
+        <span class="kw">let </span>members: Vec&lt;<span class="kw">_</span>&gt; = response
+            .chunk
+            .iter()
+            .filter_map(|event| <span class="kw">match </span>event.deserialize() {
+                <span class="prelude-val">Ok</span>(ev) =&gt; <span class="prelude-val">Some</span>(ev),
+                <span class="prelude-val">Err</span>(e) =&gt; {
+                    <span class="macro">debug!</span>(<span class="question-mark">?</span>event, <span class="string">&quot;Failed to deserialize m.room.member event: {e}&quot;</span>);
+                    <span class="prelude-val">None
+                </span>}
+            })
+            .collect();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>ambiguity_cache = AmbiguityCache::new(<span class="self">self</span>.store.inner.clone());
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(room) = <span class="self">self</span>.store.get_room(room_id) {
+            <span class="kw">let </span><span class="kw-2">mut </span>room_info = room.clone_info();
+            room_info.mark_members_synced();
+
+            <span class="kw">let </span><span class="kw-2">mut </span>changes = StateChanges::default();
+
+            <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+            </span><span class="kw">let </span><span class="kw-2">mut </span>user_ids = BTreeSet::new();
+
+            <span class="kw">for </span>member <span class="kw">in </span><span class="kw-2">&amp;</span>members {
+                <span class="kw">let </span>member: SyncRoomMemberEvent = member.clone().into();
+
+                <span class="kw">if </span><span class="self">self</span>.store.get_member_event(room_id, member.state_key()).<span class="kw">await</span><span class="question-mark">?</span>.is_none() {
+                    <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+                    </span><span class="kw">match </span>member.membership() {
+                        MembershipState::Join | MembershipState::Invite =&gt; {
+                            user_ids.insert(member.state_key().to_owned());
+                        }
+                        <span class="kw">_ </span>=&gt; (),
+                    }
+
+                    ambiguity_cache.handle_event(<span class="kw-2">&amp;</span>changes, room_id, <span class="kw-2">&amp;</span>member).<span class="kw">await</span><span class="question-mark">?</span>;
+
+                    <span class="kw">if </span>member.state_key() == member.sender() {
+                        changes
+                            .profiles
+                            .entry(room_id.to_owned())
+                            .or_default()
+                            .insert(member.sender().to_owned(), member.borrow().into());
+                    }
+
+                    changes
+                        .members
+                        .entry(room_id.to_owned())
+                        .or_default()
+                        .insert(member.state_key().to_owned(), member);
+                }
+            }
+
+            <span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+            </span><span class="kw">if </span>room_info.is_encrypted() {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(o) = <span class="self">self</span>.olm_machine() {
+                    o.update_tracked_users(user_ids.iter().map(Deref::deref)).<span class="kw">await
+                </span>}
+            }
+
+            changes.ambiguity_maps = ambiguity_cache.cache;
+            changes.add_room(room_info);
+
+            <span class="self">self</span>.store.save_changes(<span class="kw-2">&amp;</span>changes).<span class="kw">await</span><span class="question-mark">?</span>;
+            <span class="self">self</span>.apply_changes(<span class="kw-2">&amp;</span>changes).<span class="kw">await</span>;
+        }
+
+        <span class="prelude-val">Ok</span>(MembersResponse {
+            chunk: members,
+            ambiguity_changes: AmbiguityChanges { changes: ambiguity_cache.changes },
+        })
+    }
+
+    <span class="doccomment">/// Receive a successful filter upload response, the filter id will be
+    /// stored under the given name in the store.
+    ///
+    /// The filter id can later be retrieved with the [`get_filter`] method.
+    ///
+    ///
+    /// # Arguments
+    ///
+    /// * `filter_name` - The name that should be used to persist the filter id
+    ///   in
+    /// the store.
+    ///
+    /// * `response` - The successful filter upload response containing the
+    /// filter id.
+    ///
+    /// [`get_filter`]: #method.get_filter
+    </span><span class="kw">pub async fn </span>receive_filter_upload(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        filter_name: <span class="kw-2">&amp;</span>str,
+        response: <span class="kw-2">&amp;</span>api::filter::create_filter::v3::Response,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.store.save_filter(filter_name, <span class="kw-2">&amp;</span>response.filter_id).<span class="kw">await</span><span class="question-mark">?</span>)
+    }
+
+    <span class="doccomment">/// Get the filter id of a previously uploaded filter.
+    ///
+    /// *Note*: A filter will first need to be uploaded and persisted using
+    /// [`receive_filter_upload`].
+    ///
+    /// # Arguments
+    ///
+    /// * `filter_name` - The name of the filter that was previously used to
+    /// persist the filter.
+    ///
+    /// [`receive_filter_upload`]: #method.receive_filter_upload
+    </span><span class="kw">pub async fn </span>get_filter(<span class="kw-2">&amp;</span><span class="self">self</span>, filter_name: <span class="kw-2">&amp;</span>str) -&gt; StoreResult&lt;<span class="prelude-ty">Option</span>&lt;String&gt;&gt; {
+        <span class="self">self</span>.store.get_filter(filter_name).<span class="kw">await
+    </span>}
+
+    <span class="doccomment">/// Get a to-device request that will share a room key with users in a room.
+    </span><span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span><span class="kw">pub async fn </span>share_room_key(<span class="kw-2">&amp;</span><span class="self">self</span>, room_id: <span class="kw-2">&amp;</span>RoomId) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Arc&lt;ToDeviceRequest&gt;&gt;&gt; {
+        <span class="kw">match </span><span class="self">self</span>.olm_machine() {
+            <span class="prelude-val">Some</span>(o) =&gt; {
+                <span class="kw">let </span>(history_visibility, settings) = <span class="self">self
+                    </span>.get_room(room_id)
+                    .map(|r| (r.history_visibility(), r.encryption_settings()))
+                    .unwrap_or((HistoryVisibility::Joined, <span class="prelude-val">None</span>));
+
+                <span class="kw">let </span>joined = <span class="self">self</span>.store.get_joined_user_ids(room_id).<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="kw">let </span>invited = <span class="self">self</span>.store.get_invited_user_ids(room_id).<span class="kw">await</span><span class="question-mark">?</span>;
+
+                <span class="comment">// Don&#39;t share the group session with members that are invited
+                // if the history visibility is set to `Joined`
+                </span><span class="kw">let </span>members = <span class="kw">if </span>history_visibility == HistoryVisibility::Joined {
+                    joined.iter().chain(<span class="kw-2">&amp;</span>[])
+                } <span class="kw">else </span>{
+                    joined.iter().chain(<span class="kw-2">&amp;</span>invited)
+                };
+
+                <span class="kw">let </span>settings = settings.ok_or(Error::EncryptionNotEnabled)<span class="question-mark">?</span>;
+                <span class="kw">let </span>settings = EncryptionSettings::new(settings, history_visibility, <span class="bool-val">false</span>);
+
+                <span class="prelude-val">Ok</span>(o.share_room_key(room_id, members.map(Deref::deref), settings).<span class="kw">await</span><span class="question-mark">?</span>)
+            }
+            <span class="prelude-val">None </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;Olm machine wasn&#39;t started&quot;</span>),
+        }
+    }
+
+    <span class="doccomment">/// Get the room with the given room id.
+    ///
+    /// # Arguments
+    ///
+    /// * `room_id` - The id of the room that should be fetched.
+    </span><span class="kw">pub fn </span>get_room(<span class="kw-2">&amp;</span><span class="self">self</span>, room_id: <span class="kw-2">&amp;</span>RoomId) -&gt; <span class="prelude-ty">Option</span>&lt;Room&gt; {
+        <span class="self">self</span>.store.get_room(room_id)
+    }
+
+    <span class="doccomment">/// Get the olm machine.
+    </span><span class="attr">#[cfg(feature = <span class="string">&quot;e2e-encryption&quot;</span>)]
+    </span><span class="kw">pub fn </span>olm_machine(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>OlmMachine&gt; {
+        <span class="self">self</span>.olm_machine.get()
+    }
+
+    <span class="doccomment">/// Get the push rules.
+    ///
+    /// Gets the push rules from `changes` if they have been updated, otherwise
+    /// get them from the store. As a fallback, uses
+    /// `Ruleset::server_default` if the user is logged in.
+    </span><span class="kw">pub async fn </span>get_push_rules(<span class="kw-2">&amp;</span><span class="self">self</span>, changes: <span class="kw-2">&amp;</span>StateChanges) -&gt; <span class="prelude-ty">Result</span>&lt;Ruleset&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(event) = changes
+            .account_data
+            .get(<span class="kw-2">&amp;</span>GlobalAccountDataEventType::PushRules)
+            .and_then(|ev| ev.deserialize_as::&lt;PushRulesEvent&gt;().ok())
+        {
+            <span class="prelude-val">Ok</span>(event.content.global)
+        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(event) = <span class="self">self
+            </span>.store
+            .get_account_data_event_static::&lt;PushRulesEventContent&gt;()
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.and_then(|ev| ev.deserialize().ok())
+        {
+            <span class="prelude-val">Ok</span>(event.content.global)
+        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(session_meta) = <span class="self">self</span>.store.session_meta() {
+            <span class="prelude-val">Ok</span>(Ruleset::server_default(<span class="kw-2">&amp;</span>session_meta.user_id))
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(Ruleset::new())
+        }
+    }
+
+    <span class="doccomment">/// Get the push context for the given room.
+    ///
+    /// Tries to get the data from `changes` or the up to date `room_info`.
+    /// Loads the data from the store otherwise.
+    ///
+    /// Returns `None` if some data couldn&#39;t be found. This should only happen
+    /// in brand new rooms, while we process its state.
+    </span><span class="kw">pub async fn </span>get_push_room_context(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        room: <span class="kw-2">&amp;</span>Room,
+        room_info: <span class="kw-2">&amp;</span>RoomInfo,
+        changes: <span class="kw-2">&amp;</span>StateChanges,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;PushConditionRoomCtx&gt;&gt; {
+        <span class="kw">let </span>room_id = room.room_id();
+        <span class="kw">let </span>user_id = room.own_user_id();
+
+        <span class="kw">let </span>member_count = room_info.active_members_count();
+
+        <span class="kw">let </span>user_display_name = <span class="kw">if let </span><span class="prelude-val">Some</span>(member) =
+            changes.members.get(room_id).and_then(|members| members.get(user_id))
+        {
+            member
+                .as_original()
+                .and_then(|ev| ev.content.displayname.clone())
+                .unwrap_or_else(|| user_id.localpart().to_owned())
+        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(member) = room.get_member(user_id).<span class="kw">await</span><span class="question-mark">? </span>{
+            member.name().to_owned()
+        } <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        };
+
+        <span class="kw">let </span>room_power_levels = <span class="kw">if let </span><span class="prelude-val">Some</span>(event) = changes
+            .state
+            .get(room_id)
+            .and_then(|types| types.get(<span class="kw-2">&amp;</span>StateEventType::RoomPowerLevels)<span class="question-mark">?</span>.get(<span class="string">&quot;&quot;</span>))
+            .and_then(|e| e.deserialize_as::&lt;RoomPowerLevelsEvent&gt;().ok())
+        {
+            event.power_levels()
+        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(event) = <span class="self">self
+            </span>.store
+            .get_state_event_static::&lt;RoomPowerLevelsEventContent&gt;(room_id)
+            .<span class="kw">await</span><span class="question-mark">?
+            </span>.and_then(|e| e.deserialize().ok())
+        {
+            event.power_levels()
+        } <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        };
+
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(PushConditionRoomCtx {
+            user_id: user_id.to_owned(),
+            room_id: room_id.to_owned(),
+            member_count: UInt::new(member_count).unwrap_or(UInt::MAX),
+            user_display_name,
+            users_power_levels: room_power_levels.users,
+            default_power_level: room_power_levels.users_default,
+            notification_power_levels: room_power_levels.notifications,
+        }))
+    }
+
+    <span class="doccomment">/// Update the push context for the given room.
+    ///
+    /// Updates the context data from `changes` or `room_info`.
+    </span><span class="kw">pub async fn </span>update_push_room_context(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        push_rules: <span class="kw-2">&amp;mut </span>PushConditionRoomCtx,
+        user_id: <span class="kw-2">&amp;</span>UserId,
+        room_info: <span class="kw-2">&amp;</span>RoomInfo,
+        changes: <span class="kw-2">&amp;</span>StateChanges,
+    ) {
+        <span class="kw">let </span>room_id = <span class="kw-2">&amp;</span>room_info.room_id;
+
+        push_rules.member_count = UInt::new(room_info.active_members_count()).unwrap_or(UInt::MAX);
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(member) =
+            changes.members.get(<span class="kw-2">&amp;**</span>room_id).and_then(|members| members.get(user_id))
+        {
+            push_rules.user_display_name = member
+                .as_original()
+                .and_then(|ev| ev.content.displayname.clone())
+                .unwrap_or_else(|| user_id.localpart().to_owned())
+        }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(AnySyncStateEvent::RoomPowerLevels(event)) = changes
+            .state
+            .get(<span class="kw-2">&amp;**</span>room_id)
+            .and_then(|types| types.get(<span class="kw-2">&amp;</span>StateEventType::RoomPowerLevels)<span class="question-mark">?</span>.get(<span class="string">&quot;&quot;</span>))
+            .and_then(|e| e.deserialize().ok())
+        {
+            <span class="kw">let </span>room_power_levels = event.power_levels();
+
+            push_rules.users_power_levels = room_power_levels.users;
+            push_rules.default_power_level = room_power_levels.users_default;
+            push_rules.notification_power_levels = room_power_levels.notifications;
+        }
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>BaseClient {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new()
+    }
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>matrix_sdk_test::{
+        async_test, response_from_file, EventBuilder, InvitedRoomBuilder, LeftRoomBuilder,
+        StrippedStateTestEvent, TimelineTestEvent,
+    };
+    <span class="kw">use </span>ruma::{
+        api::{client <span class="kw">as </span>api, IncomingResponse},
+        room_id, user_id,
+    };
+    <span class="kw">use </span>serde_json::json;
+
+    <span class="kw">use </span><span class="kw">super</span>::BaseClient;
+    <span class="kw">use crate</span>::{DisplayName, RoomType, Session};
+
+    <span class="attr">#[async_test]
+    </span><span class="kw">async fn </span>invite_after_leaving() {
+        <span class="kw">let </span>user_id = <span class="macro">user_id!</span>(<span class="string">&quot;@alice:example.org&quot;</span>);
+        <span class="kw">let </span>room_id = <span class="macro">room_id!</span>(<span class="string">&quot;!test:example.org&quot;</span>);
+
+        <span class="kw">let </span>client = BaseClient::new();
+        client
+            .restore_session(Session {
+                access_token: <span class="string">&quot;token&quot;</span>.to_owned(),
+                refresh_token: <span class="prelude-val">None</span>,
+                user_id: user_id.to_owned(),
+                device_id: <span class="string">&quot;FOOBAR&quot;</span>.into(),
+            })
+            .<span class="kw">await
+            </span>.unwrap();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>ev_builder = EventBuilder::new();
+
+        <span class="kw">let </span>response = ev_builder
+            .add_left_room(LeftRoomBuilder::new(room_id).add_timeline_event(
+                TimelineTestEvent::Custom(<span class="macro">json!</span>({
+                    <span class="string">&quot;content&quot;</span>: {
+                        <span class="string">&quot;displayname&quot;</span>: <span class="string">&quot;Alice&quot;</span>,
+                        <span class="string">&quot;membership&quot;</span>: <span class="string">&quot;left&quot;</span>,
+                    },
+                    <span class="string">&quot;event_id&quot;</span>: <span class="string">&quot;$994173582443PhrSn:example.org&quot;</span>,
+                    <span class="string">&quot;origin_server_ts&quot;</span>: <span class="number">1432135524678u64</span>,
+                    <span class="string">&quot;sender&quot;</span>: user_id,
+                    <span class="string">&quot;state_key&quot;</span>: user_id,
+                    <span class="string">&quot;type&quot;</span>: <span class="string">&quot;m.room.member&quot;</span>,
+                })),
+            ))
+            .build_sync_response();
+        client.receive_sync_response(response).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(client.get_room(room_id).unwrap().room_type(), RoomType::Left);
+
+        <span class="kw">let </span>response = ev_builder
+            .add_invited_room(InvitedRoomBuilder::new(room_id).add_state_event(
+                StrippedStateTestEvent::Custom(<span class="macro">json!</span>({
+                    <span class="string">&quot;content&quot;</span>: {
+                        <span class="string">&quot;displayname&quot;</span>: <span class="string">&quot;Alice&quot;</span>,
+                        <span class="string">&quot;membership&quot;</span>: <span class="string">&quot;invite&quot;</span>,
+                    },
+                    <span class="string">&quot;event_id&quot;</span>: <span class="string">&quot;$143273582443PhrSn:example.org&quot;</span>,
+                    <span class="string">&quot;origin_server_ts&quot;</span>: <span class="number">1432735824653u64</span>,
+                    <span class="string">&quot;sender&quot;</span>: <span class="string">&quot;@example:example.org&quot;</span>,
+                    <span class="string">&quot;state_key&quot;</span>: user_id,
+                    <span class="string">&quot;type&quot;</span>: <span class="string">&quot;m.room.member&quot;</span>,
+                })),
+            ))
+            .build_sync_response();
+        client.receive_sync_response(response).<span class="kw">await</span>.unwrap();
+        <span class="macro">assert_eq!</span>(client.get_room(room_id).unwrap().room_type(), RoomType::Invited);
+    }
+
+    <span class="attr">#[async_test]
+    </span><span class="kw">async fn </span>invite_displayname_integration_test() {
+        <span class="kw">let </span>user_id = <span class="macro">user_id!</span>(<span class="string">&quot;@alice:example.org&quot;</span>);
+        <span class="kw">let </span>room_id = <span class="macro">room_id!</span>(<span class="string">&quot;!ithpyNKDtmhneaTQja:example.org&quot;</span>);
+
+        <span class="kw">let </span>client = BaseClient::new();
+        client
+            .restore_session(Session {
+                access_token: <span class="string">&quot;token&quot;</span>.to_owned(),
+                refresh_token: <span class="prelude-val">None</span>,
+                user_id: user_id.to_owned(),
+                device_id: <span class="string">&quot;FOOBAR&quot;</span>.into(),
+            })
+            .<span class="kw">await
+            </span>.unwrap();
+
+        <span class="kw">let </span>response = api::sync::sync_events::v3::Response::try_from_http_response(response_from_file(<span class="kw-2">&amp;</span><span class="macro">json!</span>({
+            <span class="string">&quot;next_batch&quot;</span>: <span class="string">&quot;asdkl;fjasdkl;fj;asdkl;f&quot;</span>,
+            <span class="string">&quot;device_one_time_keys_count&quot;</span>: {
+                <span class="string">&quot;signed_curve25519&quot;</span>: <span class="number">50u64
+            </span>},
+            <span class="string">&quot;device_unused_fallback_key_types&quot;</span>: [
+                <span class="string">&quot;signed_curve25519&quot;
+            </span>],
+            <span class="string">&quot;rooms&quot;</span>: {
+                <span class="string">&quot;invite&quot;</span>: {
+                    <span class="string">&quot;!ithpyNKDtmhneaTQja:example.org&quot;</span>: {
+                        <span class="string">&quot;invite_state&quot;</span>: {
+                            <span class="string">&quot;events&quot;</span>: [
+                                {
+                                    <span class="string">&quot;content&quot;</span>: {
+                                        <span class="string">&quot;creator&quot;</span>: <span class="string">&quot;@test:example.org&quot;</span>,
+                                        <span class="string">&quot;room_version&quot;</span>: <span class="string">&quot;9&quot;
+                                    </span>},
+                                    <span class="string">&quot;sender&quot;</span>: <span class="string">&quot;@test:example.org&quot;</span>,
+                                    <span class="string">&quot;state_key&quot;</span>: <span class="string">&quot;&quot;</span>,
+                                    <span class="string">&quot;type&quot;</span>: <span class="string">&quot;m.room.create&quot;
+                                </span>},
+                                {
+                                    <span class="string">&quot;content&quot;</span>: {
+                                        <span class="string">&quot;join_rule&quot;</span>: <span class="string">&quot;invite&quot;
+                                    </span>},
+                                    <span class="string">&quot;sender&quot;</span>: <span class="string">&quot;@test:example.org&quot;</span>,
+                                    <span class="string">&quot;state_key&quot;</span>: <span class="string">&quot;&quot;</span>,
+                                    <span class="string">&quot;type&quot;</span>: <span class="string">&quot;m.room.join_rules&quot;
+                                </span>},
+                                {
+                                    <span class="string">&quot;content&quot;</span>: {
+                                        <span class="string">&quot;algorithm&quot;</span>: <span class="string">&quot;m.megolm.v1.aes-sha2&quot;
+                                    </span>},
+                                    <span class="string">&quot;sender&quot;</span>: <span class="string">&quot;@test:example.org&quot;</span>,
+                                    <span class="string">&quot;state_key&quot;</span>: <span class="string">&quot;&quot;</span>,
+                                    <span class="string">&quot;type&quot;</span>: <span class="string">&quot;m.room.encryption&quot;
+                                </span>},
+                                {
+                                    <span class="string">&quot;content&quot;</span>: {
+                                        <span class="string">&quot;avatar_url&quot;</span>: <span class="string">&quot;mxc://example.org/dcBBDwuWEUrjfrOchvkirUST&quot;</span>,
+                                        <span class="string">&quot;displayname&quot;</span>: <span class="string">&quot;Kyra&quot;</span>,
+                                        <span class="string">&quot;membership&quot;</span>: <span class="string">&quot;join&quot;
+                                    </span>},
+                                    <span class="string">&quot;sender&quot;</span>: <span class="string">&quot;@test:example.org&quot;</span>,
+                                    <span class="string">&quot;state_key&quot;</span>: <span class="string">&quot;@test:example.org&quot;</span>,
+                                    <span class="string">&quot;type&quot;</span>: <span class="string">&quot;m.room.member&quot;
+                                </span>},
+                                {
+                                    <span class="string">&quot;content&quot;</span>: {
+                                        <span class="string">&quot;avatar_url&quot;</span>: <span class="string">&quot;mxc://example.org/ABFEXSDrESxovWwEnCYdNcHT&quot;</span>,
+                                        <span class="string">&quot;displayname&quot;</span>: <span class="string">&quot;alice&quot;</span>,
+                                        <span class="string">&quot;is_direct&quot;</span>: <span class="bool-val">true</span>,
+                                        <span class="string">&quot;membership&quot;</span>: <span class="string">&quot;invite&quot;
+                                    </span>},
+                                    <span class="string">&quot;origin_server_ts&quot;</span>: <span class="number">1650878657984u64</span>,
+                                    <span class="string">&quot;sender&quot;</span>: <span class="string">&quot;@test:example.org&quot;</span>,
+                                    <span class="string">&quot;state_key&quot;</span>: <span class="string">&quot;@alice:example.org&quot;</span>,
+                                    <span class="string">&quot;type&quot;</span>: <span class="string">&quot;m.room.member&quot;</span>,
+                                    <span class="string">&quot;unsigned&quot;</span>: {
+                                        <span class="string">&quot;age&quot;</span>: <span class="number">14u64
+                                    </span>},
+                                    <span class="string">&quot;event_id&quot;</span>: <span class="string">&quot;$fLDqltg9Puj-kWItLSFVHPGN4YkgpYQf2qImPzdmgrE&quot;
+                                </span>}
+                            ]
+                        }
+                    }
+                }
+            }
+        }))).expect(<span class="string">&quot;static json doesn&#39;t fail to parse&quot;</span>);
+
+        client.receive_sync_response(response).<span class="kw">await</span>.unwrap();
+
+        <span class="kw">let </span>room = client.get_room(room_id).expect(<span class="string">&quot;Room not found&quot;</span>);
+        <span class="macro">assert_eq!</span>(room.room_type(), RoomType::Invited);
+        <span class="macro">assert_eq!</span>(
+            room.display_name().<span class="kw">await</span>.expect(<span class="string">&quot;fetching display name failed&quot;</span>),
+            DisplayName::Calculated(<span class="string">&quot;Kyra&quot;</span>.to_owned())
+        );
+    }
+}
+</code></pre></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="matrix_sdk_base" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.67.0-nightly (09508489e 2022-11-04)" ></div></body></html>

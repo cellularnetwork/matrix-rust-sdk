@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":[["encrypted","Types for the `m.room.encrypted` room events."]],"struct":[["Event","Generic room event with a known type and content."]]};
